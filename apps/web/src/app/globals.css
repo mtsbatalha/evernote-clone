@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71% 4%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 224 71% 4%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --border: 220 13% 91%;
+    --ring: 262 83% 58%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --primary: 263 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 213 31% 91%;
+    --accent: 215 28% 17%;
+    --accent-foreground: 213 31% 91%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+    --card: 222 47% 11%;
+    --card-foreground: 213 31% 91%;
+    --border: 215 28% 17%;
+    --ring: 263 70% 50%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+    font-feature-settings: "cv11", "ss01", "ss02";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold tracking-tight;
+    line-height: 1.3;
+  }
+
+  h1 {
+    @apply text-3xl font-bold;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    @apply text-2xl;
+    letter-spacing: -0.015em;
+  }
+
+  h3 {
+    @apply text-xl;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    line-height: 1.7;
+  }
+
+  /* Notion-like smooth text rendering */
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+/* TipTap Editor Styles */
+.tiptap {
+  @apply outline-none min-h-[200px];
+}
+
+.tiptap p {
+  @apply my-2;
+}
+
+.tiptap h1 {
+  @apply text-3xl font-bold mt-6 mb-4;
+}
+
+.tiptap h2 {
+  @apply text-2xl font-semibold mt-5 mb-3;
+}
+
+.tiptap h3 {
+  @apply text-xl font-medium mt-4 mb-2;
+}
+
+.tiptap ul,
+.tiptap ol {
+  @apply pl-6 my-2;
+}
+
+.tiptap ul {
+  @apply list-disc;
+}
+
+.tiptap ol {
+  @apply list-decimal;
+}
+
+.tiptap li {
+  @apply my-1;
+}
+
+.tiptap ul[data-type="taskList"] {
+  @apply list-none pl-0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.tiptap ul[data-type="taskList"] li>label {
+  @apply flex-shrink-0 mt-0.5;
+}
+
+.tiptap blockquote {
+  @apply border-l-4 border-primary/30 pl-4 italic my-4;
+}
+
+.tiptap code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.tiptap pre {
+  @apply bg-muted p-4 rounded-lg my-4 overflow-x-auto;
+}
+
+.tiptap pre code {
+  @apply bg-transparent p-0;
+}
+
+.tiptap a {
+  @apply text-primary underline underline-offset-2;
+}
+
+.tiptap img {
+  @apply rounded-lg max-w-full my-4;
+}
+
+.tiptap mark {
+  @apply bg-yellow-200 dark:bg-yellow-500/30 px-0.5 rounded;
+}
+
+.tiptap hr {
+  @apply my-8 border-border;
+}
+
+/* Collaboration cursor */
+.collaboration-cursor__caret {
+  @apply relative ml-[-1px] mr-[-1px] pointer-events-none break-normal border-l-2;
+}
+
+.collaboration-cursor__label {
+  @apply absolute top-[-1.4em] left-[-1px] text-xs font-semibold whitespace-nowrap;
+  @apply px-1.5 py-0.5 rounded text-white select-none;
+}
+
+/* Placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+  content: attr(data-placeholder);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}

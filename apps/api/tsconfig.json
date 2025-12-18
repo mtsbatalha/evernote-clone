@@ -1,0 +1,46 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "declaration": false,
+        "removeComments": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "target": "ES2021",
+        "sourceMap": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "baseUrl": "./src",
+        "incremental": true,
+        "noEmit": false,
+        "strictPropertyInitialization": false,
+        "declarationMap": false,
+        "skipLibCheck": true,
+        "noImplicitAny": false,
+        "strict": false,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@evernote-clone/database": [
+                "../../../packages/database/src"
+            ],
+            "@evernote-clone/shared": [
+                "../../../packages/shared/src"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "test"
+    ]
+}

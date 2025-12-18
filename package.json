@@ -1,0 +1,27 @@
+{
+  "name": "evernote-clone",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @evernote-clone/database generate",
+    "db:push": "pnpm --filter @evernote-clone/database push",
+    "db:migrate": "pnpm --filter @evernote-clone/database migrate",
+    "db:studio": "pnpm --filter @evernote-clone/database studio",
+    "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f docker/docker-compose.yml down",
+    "start:all": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
+    "stop:all": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.1",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
