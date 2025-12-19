@@ -135,3 +135,43 @@ export const sharesApi = {
     removeShare: (token: string, shareId: string) =>
         fetchApi<void>(`/shares/${shareId}`, { method: 'DELETE', token }),
 };
+
+// Storage API
+export interface Attachment {
+    id: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    url: string;
+    key: string;
+    createdAt: string;
+    noteId: string;
+}
+
+export const storageApi = {
+    uploadFile: async (token: string, noteId: string, file: File): Promise<Attachment> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${API_URL}/storage/upload/${noteId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+            throw new Error(error.message || `HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    },
+
+    deleteAttachment: (token: string, attachmentId: string) =>
+        fetchApi<{ success: boolean }>(`/storage/${attachmentId}`, { method: 'DELETE', token }),
+
+    getAttachments: (token: string, noteId: string) =>
+        fetchApi<Attachment[]>(`/storage/note/${noteId}`, { token }),
+};

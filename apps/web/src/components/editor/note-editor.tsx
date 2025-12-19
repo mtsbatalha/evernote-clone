@@ -5,20 +5,23 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Highlight from '@tiptap/extension-highlight';
 import Underline from '@tiptap/extension-underline';
 import Typography from '@tiptap/extension-typography';
+import { ResizableImage } from './extensions/resizable-image';
+import { CodeBlockWithLanguage } from './extensions/code-block-language';
+import { ImageEditorDialog, ImageData } from './image-editor-dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { useNotesStore } from '@/store/notes-store';
-import { notesApi } from '@/lib/api';
+import { notesApi, storageApi, Attachment } from '@/lib/api';
 import { EditorToolbar } from './editor-toolbar';
 import { SlashCommandMenu } from './slash-command-menu';
 import { NoteActionsMenu } from './note-actions-menu';
+import { AttachmentList } from './attachment-list';
 import { ShareDialog } from '@/components/dialogs/share-dialog';
 import { VersionHistoryDialog } from '@/components/dialogs/version-history-dialog';
 import { TagsDialog } from '@/components/dialogs/tags-dialog';
@@ -57,6 +60,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     const [isLocked, setIsLocked] = useState(false);
     const [fontStyle, setFontStyle] = useState('default');
     const [showVersionHistory, setShowVersionHistory] = useState(false);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [isDraggingFile, setIsDraggingFile] = useState(false);
+    const [editingImage, setEditingImage] = useState<{
+        src: string;
+        alt?: string;
+        width?: number;
+        height?: number;
+        updateAttributes: (attrs: Record<string, any>) => void;
+    } | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const editor = useEditor({
@@ -65,6 +77,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 history: {
                     depth: 100,
                 },
+                codeBlock: false, // Using custom CodeBlockWithLanguage instead
             }),
             Placeholder.configure({
                 placeholder: 'Start writing...',
@@ -75,11 +88,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     class: 'text-primary underline underline-offset-2',
                 },
             }),
-            Image.configure({
-                HTMLAttributes: {
-                    class: 'rounded-lg max-w-full',
-                },
-            }),
+            ResizableImage,
+            CodeBlockWithLanguage,
             TaskList,
             TaskItem.configure({
                 nested: true,
@@ -100,7 +110,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         },
     });
 
-    // Load note
+    // Load note and attachments
     useEffect(() => {
         const loadNote = async () => {
             if (!token) return;
@@ -119,6 +129,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     } else {
                         editor.commands.clearContent();
                     }
+                }
+
+                // Load attachments
+                try {
+                    const noteAttachments = await storageApi.getAttachments(token, noteId);
+                    setAttachments(noteAttachments);
+                } catch (e) {
+                    // Attachments endpoint may not exist yet, silently fail
+                    console.log('Attachments not available');
                 }
             } catch (error) {
                 toast.error('Failed to load note');
@@ -178,6 +197,109 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             }
         }, 500);
     };
+
+    // Handle attachment upload
+    const handleAttachmentUpload = useCallback((attachment: Attachment) => {
+        setAttachments(prev => [attachment, ...prev]);
+    }, []);
+
+    // Handle attachment delete
+    const handleAttachmentDelete = useCallback((attachmentId: string) => {
+        setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+    }, []);
+
+    // Handle file drop on editor area
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDraggingFile(true);
+        }
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+    }, []);
+
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+
+        if (!token || isLocked) return;
+
+        const files = e.dataTransfer.files;
+        const firstFile = files?.[0];
+        if (!firstFile) return;
+
+        // Check file size
+        if (firstFile.size > 10 * 1024 * 1024) {
+            toast.error('Arquivo muito grande. Máximo: 10MB');
+            return;
+        }
+
+        try {
+            toast.loading('Enviando arquivo...', { id: 'file-upload' });
+            const attachment = await storageApi.uploadFile(token, noteId, firstFile);
+            toast.success('Arquivo enviado!', { id: 'file-upload' });
+
+            // If it's an image, insert into editor
+            if (firstFile.type.startsWith('image/') && editor) {
+                editor.chain().focus().setImage({ src: attachment.url }).run();
+            }
+
+            handleAttachmentUpload(attachment);
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast.error('Falha ao enviar arquivo', { id: 'file-upload' });
+        }
+    }, [token, noteId, isLocked, editor, handleAttachmentUpload]);
+
+    // Listen for double-click on images to open editor
+    useEffect(() => {
+        const handleOpenImageEditor = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            setEditingImage(customEvent.detail);
+        };
+
+        const handleContinueAfterImage = () => {
+            if (editor) {
+                // Insert a new paragraph after current position and focus it
+                const { state } = editor;
+                const { selection } = state;
+                const pos = selection.$to.after(1);
+
+                editor.chain()
+                    .focus()
+                    .insertContentAt(pos, { type: 'paragraph' })
+                    .setTextSelection(pos + 1)
+                    .run();
+            }
+        };
+
+        window.addEventListener('open-image-editor', handleOpenImageEditor);
+        window.addEventListener('continue-after-image', handleContinueAfterImage);
+        return () => {
+            window.removeEventListener('open-image-editor', handleOpenImageEditor);
+            window.removeEventListener('continue-after-image', handleContinueAfterImage);
+        };
+    }, [editor]);
+
+    // Handle inline image edit
+    const handleInlineImageEdit = useCallback((imageData: ImageData) => {
+        if (editingImage) {
+            editingImage.updateAttributes({
+                src: imageData.src,
+                alt: imageData.alt,
+                width: imageData.width,
+                height: imageData.height,
+                caption: imageData.caption || '',
+            });
+        }
+        setEditingImage(null);
+    }, [editingImage]);
 
     // Cleanup
     useEffect(() => {
@@ -400,7 +522,28 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </header>
 
             {/* Editor */}
-            <div className="flex-1 overflow-y-auto group">
+            <div
+                className={cn(
+                    "flex-1 overflow-y-auto group relative",
+                    isDraggingFile && "ring-2 ring-primary ring-inset bg-primary/5"
+                )}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                {/* Drop overlay */}
+                {isDraggingFile && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
+                        <div className="flex flex-col items-center gap-2 text-primary">
+                            <div className="p-4 rounded-full bg-primary/10">
+                                <Download className="w-8 h-8" />
+                            </div>
+                            <span className="text-lg font-medium">Solte o arquivo aqui</span>
+                            <span className="text-sm text-muted-foreground">Imagens serão inseridas no editor</span>
+                        </div>
+                    </div>
+                )}
+
                 <div className={cn(
                     'mx-auto px-6 py-8 transition-all',
                     isFullWidth ? 'max-w-none px-12' : 'max-w-4xl'
@@ -420,7 +563,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     />
 
                     {/* Toolbar */}
-                    {editor && !isLocked && <EditorToolbar editor={editor} />}
+                    {editor && !isLocked && (
+                        <EditorToolbar
+                            editor={editor}
+                            noteId={noteId}
+                            token={token || undefined}
+                            onAttachmentUpload={handleAttachmentUpload}
+                        />
+                    )}
 
                     {/* Slash Command Menu */}
                     {!isLocked && <SlashCommandMenu editor={editor} />}
@@ -436,6 +586,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                             fontStyle === 'mono' && 'font-mono'
                         )}
                     />
+
+                    {/* Attachments List */}
+                    {token && attachments.length > 0 && (
+                        <AttachmentList
+                            attachments={attachments}
+                            token={token}
+                            onDelete={handleAttachmentDelete}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -448,6 +607,19 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     onOpenChange={(open) => setShowVersionHistory(open)}
                 />
             )}
+
+            {/* Inline Image Editor Dialog - opened by double-click on images */}
+            {editingImage && (
+                <ImageEditorDialog
+                    isOpen={true}
+                    onClose={() => setEditingImage(null)}
+                    onInsert={handleInlineImageEdit}
+                    initialImage={editingImage.src}
+                    initialWidth={editingImage.width}
+                    initialHeight={editingImage.height}
+                />
+            )}
         </div>
     );
 }
+

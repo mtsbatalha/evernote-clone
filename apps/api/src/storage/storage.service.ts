@@ -122,4 +122,29 @@ export class StorageService {
             Expires: 3600, // 1 hour
         });
     }
+
+    async getAttachmentsByNote(noteId: string, userId: string) {
+        // Verify note access
+        const note = await this.prisma.note.findUnique({
+            where: { id: noteId },
+            include: { shares: true },
+        });
+
+        if (!note) {
+            throw new Error('Note not found');
+        }
+
+        const hasAccess =
+            note.authorId === userId ||
+            note.shares.some((s) => s.userId === userId);
+
+        if (!hasAccess) {
+            throw new Error('You do not have permission to view attachments for this note');
+        }
+
+        return this.prisma.attachment.findMany({
+            where: { noteId },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
 }

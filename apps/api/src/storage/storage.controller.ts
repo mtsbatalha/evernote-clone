@@ -2,6 +2,7 @@ import {
     Controller,
     Post,
     Delete,
+    Get,
     Param,
     UseGuards,
     UseInterceptors,
@@ -21,6 +22,15 @@ import { User } from '@prisma/client';
 @Controller('storage')
 export class StorageController {
     constructor(private readonly storageService: StorageService) { }
+
+    @Get('note/:noteId')
+    @ApiOperation({ summary: 'Get all attachments for a note' })
+    async getAttachments(
+        @CurrentUser() user: User,
+        @Param('noteId') noteId: string,
+    ) {
+        return this.storageService.getAttachmentsByNote(noteId, user.id);
+    }
 
     @Post('upload/:noteId')
     @ApiOperation({ summary: 'Upload a file attachment' })
@@ -61,3 +71,4 @@ export class StorageController {
         return this.storageService.deleteFile(id, user.id);
     }
 }
+

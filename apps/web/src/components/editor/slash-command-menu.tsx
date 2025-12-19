@@ -204,7 +204,7 @@ const COMMAND_GROUPS: CommandGroup[] = [
         title: 'Mídia',
         items: [
             {
-                title: 'Imagem',
+                title: 'Imagem por URL',
                 description: 'Inserir imagem via URL',
                 icon: <Image className="w-4 h-4" />,
                 action: (editor) => {
@@ -213,6 +213,28 @@ const COMMAND_GROUPS: CommandGroup[] = [
                         editor.chain().focus().setImage({ src: url }).run();
                         toast.success('Imagem inserida!');
                     }
+                },
+            },
+            {
+                title: 'Upload de Imagem',
+                description: 'Enviar imagem do dispositivo',
+                icon: <Upload className="w-4 h-4" />,
+                badge: 'Novo',
+                action: (editor) => {
+                    // Create file input and trigger it
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+
+                        // Create object URL for local preview
+                        const objectUrl = URL.createObjectURL(file);
+                        editor.chain().focus().setImage({ src: objectUrl }).run();
+                        toast.success('Imagem inserida! Para salvar permanentemente, use o botão de upload na toolbar.');
+                    };
+                    input.click();
                 },
             },
             {
