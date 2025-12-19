@@ -17,9 +17,11 @@ import {
 
 interface VersionHistoryDialogProps {
     noteId: string;
-    noteTitle: string;
+    noteTitle?: string;
     onRestore?: () => void;
-    children: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    children?: React.ReactNode;
 }
 
 interface Version {
@@ -29,13 +31,27 @@ interface Version {
     content: any;
 }
 
-export function VersionHistoryDialog({ noteId, noteTitle, onRestore, children }: VersionHistoryDialogProps) {
+export function VersionHistoryDialog({
+    noteId,
+    noteTitle = '',
+    onRestore,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+    children
+}: VersionHistoryDialogProps) {
     const { token } = useAuthStore();
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
     const [versions, setVersions] = useState<Version[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isRestoring, setIsRestoring] = useState<string | null>(null);
     const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
+
+    // Use controlled or internal state
+    const open = controlledOpen ?? internalOpen;
+    const setOpen = (value: boolean) => {
+        setInternalOpen(value);
+        controlledOnOpenChange?.(value);
+    };
 
     const loadVersions = async () => {
         if (!token) return;

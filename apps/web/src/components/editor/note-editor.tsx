@@ -18,6 +18,7 @@ import { useNotesStore } from '@/store/notes-store';
 import { notesApi } from '@/lib/api';
 import { EditorToolbar } from './editor-toolbar';
 import { SlashCommandMenu } from './slash-command-menu';
+import { NoteActionsMenu } from './note-actions-menu';
 import { ShareDialog } from '@/components/dialogs/share-dialog';
 import { VersionHistoryDialog } from '@/components/dialogs/version-history-dialog';
 import { TagsDialog } from '@/components/dialogs/tags-dialog';
@@ -30,8 +31,10 @@ import {
     Hash,
     History,
     Loader2,
+    MoreHorizontal,
     Printer,
     Share2,
+    Star,
     Tag,
     Users,
 } from 'lucide-react';
@@ -49,6 +52,11 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [title, setTitle] = useState('');
     const [noteTags, setNoteTags] = useState<any[]>([]);
+    const [isSmallText, setIsSmallText] = useState(false);
+    const [isFullWidth, setIsFullWidth] = useState(false);
+    const [isLocked, setIsLocked] = useState(false);
+    const [fontStyle, setFontStyle] = useState('default');
+    const [showVersionHistory, setShowVersionHistory] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const editor = useEditor({
@@ -248,9 +256,9 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                             <Tag className="w-4 h-4" />
                             {noteTags.length > 0 && (
                                 <div className="flex items-center gap-1">
-                                    {noteTags.slice(0, 2).map((tag) => (
+                                    {noteTags.slice(0, 2).map((tag, index) => (
                                         <span
-                                            key={tag.id}
+                                            key={tag.id || index}
                                             className="px-1.5 py-0.5 rounded text-xs"
                                             style={{ backgroundColor: `${tag.color || '#6366f1'}20`, color: tag.color || '#6366f1' }}
                                         >
@@ -352,31 +360,94 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                             <span>Compartilhar</span>
                         </button>
                     </ShareDialog>
+
+                    {/* Favorite button */}
+                    <button
+                        className={cn(
+                            'p-2 rounded-lg hover:bg-accent transition-colors',
+                            'text-muted-foreground hover:text-foreground'
+                        )}
+                        title="Favoritar"
+                    >
+                        <Star className="w-5 h-5" />
+                    </button>
+
+                    {/* Actions Menu */}
+                    <NoteActionsMenu
+                        noteId={noteId}
+                        noteTitle={title}
+                        noteContent={editor?.getJSON()}
+                        isSmallText={isSmallText}
+                        onSmallTextChange={setIsSmallText}
+                        isFullWidth={isFullWidth}
+                        onFullWidthChange={setIsFullWidth}
+                        isLocked={isLocked}
+                        onLockedChange={setIsLocked}
+                        fontStyle={fontStyle}
+                        onFontStyleChange={setFontStyle}
+                        onVersionHistory={() => setShowVersionHistory(true)}
+                    >
+                        <button
+                            className={cn(
+                                'p-2 rounded-lg hover:bg-accent transition-colors',
+                                'text-muted-foreground hover:text-foreground'
+                            )}
+                        >
+                            <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                    </NoteActionsMenu>
                 </div>
             </header>
 
             {/* Editor */}
             <div className="flex-1 overflow-y-auto group">
-                <div className="max-w-4xl mx-auto px-6 py-8">
+                <div className={cn(
+                    'mx-auto px-6 py-8 transition-all',
+                    isFullWidth ? 'max-w-none px-12' : 'max-w-4xl'
+                )}>
                     {/* Title */}
                     <input
                         type="text"
                         value={title}
                         onChange={(e) => handleTitleChange(e.target.value)}
                         placeholder="Sem título"
-                        className="w-full text-4xl font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6"
+                        disabled={isLocked}
+                        className={cn(
+                            'w-full font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6',
+                            isSmallText ? 'text-2xl' : 'text-4xl',
+                            isLocked && 'cursor-not-allowed opacity-70'
+                        )}
                     />
 
                     {/* Toolbar */}
-                    {editor && <EditorToolbar editor={editor} />}
+                    {editor && !isLocked && <EditorToolbar editor={editor} />}
 
                     {/* Slash Command Menu */}
-                    <SlashCommandMenu editor={editor} />
+                    {!isLocked && <SlashCommandMenu editor={editor} />}
 
                     {/* Content */}
-                    <EditorContent editor={editor} className="mt-4" />
+                    <EditorContent
+                        editor={editor}
+                        className={cn(
+                            'mt-4',
+                            isSmallText && 'text-sm',
+                            isLocked && 'pointer-events-none opacity-70',
+                            fontStyle === 'serif' && 'font-serif',
+                            fontStyle === 'mono' && 'font-mono'
+                        )}
+                    />
                 </div>
             </div>
+
+            {/* Version History Dialog - controlled */}
+            {showVersionHistory && (
+                <VersionHistoryDialog
+                    noteId={noteId}
+                    noteTitle={title}
+                    open={showVersionHistory}
+                    onOpenChange={(open) => setShowVersionHistory(open)}
+                />
+            )}
         </div>
     );
 }
