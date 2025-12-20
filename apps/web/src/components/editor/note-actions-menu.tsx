@@ -203,11 +203,12 @@ export function NoteActionsMenu({
                     align="end"
                     sideOffset={5}
                     className={cn(
-                        'w-64 p-2 rounded-xl shadow-xl border',
-                        'bg-popover text-popover-foreground',
+                        'w-64 p-2 rounded-xl shadow-xl border border-zinc-700',
+                        'bg-zinc-800 text-zinc-100',
                         'animate-in fade-in-0 zoom-in-95',
                         'z-50'
                     )}
+                    style={{ backgroundColor: '#27272a' }}
                 >
                     {/* Search placeholder */}
                     <div className="px-2 pb-2 mb-2 border-b">
@@ -269,11 +270,12 @@ export function NoteActionsMenu({
                             <DropdownMenu.SubContent
                                 sideOffset={5}
                                 className={cn(
-                                    'w-48 p-2 rounded-xl shadow-xl border',
-                                    'bg-popover text-popover-foreground',
+                                    'w-48 p-2 rounded-xl shadow-xl border border-zinc-700',
+                                    'bg-zinc-800 text-zinc-100',
                                     'animate-in fade-in-0 slide-in-from-left-2',
                                     'z-50'
                                 )}
+                                style={{ backgroundColor: '#27272a' }}
                             >
                                 {notebooks.length === 0 ? (
                                     <div className="px-2 py-4 text-center text-sm text-muted-foreground">

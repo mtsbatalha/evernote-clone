@@ -137,7 +137,7 @@ function CodeBlockView({ node, updateAttributes, extension }: CodeBlockViewProps
 // Custom CodeBlock Extension with language selector
 export const CodeBlockWithLanguage = CodeBlockLowlight.extend({
     addNodeView() {
-        return ReactNodeViewRenderer(CodeBlockView);
+        return ReactNodeViewRenderer(CodeBlockView, { flushSync: false } as any);
     },
 }).configure({
     lowlight,

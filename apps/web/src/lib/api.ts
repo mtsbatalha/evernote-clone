@@ -175,3 +175,20 @@ export const storageApi = {
     getAttachments: (token: string, noteId: string) =>
         fetchApi<Attachment[]>(`/storage/note/${noteId}`, { token }),
 };
+
+// Link Metadata Types
+export interface LinkMetadata {
+    url: string;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    favicon: string | null;
+    siteName: string | null;
+    domain: string;
+}
+
+// Metadata API
+export const metadataApi = {
+    getLinkPreview: (token: string, url: string) =>
+        fetchApi<LinkMetadata>(`/metadata/link?url=${encodeURIComponent(url)}`, { token }),
+};

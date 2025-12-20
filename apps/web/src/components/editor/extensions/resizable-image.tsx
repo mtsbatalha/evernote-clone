@@ -224,7 +224,7 @@ export const ResizableImage = Image.extend({
     },
 
     addNodeView() {
-        return ReactNodeViewRenderer(ResizableImageView);
+        return ReactNodeViewRenderer(ResizableImageView, { flushSync: false } as any);
     },
 });
 

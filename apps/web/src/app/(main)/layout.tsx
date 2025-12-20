@@ -17,7 +17,7 @@ export default function MainLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
-    const { isAuthenticated, token } = useAuthStore();
+    const { isAuthenticated, token, hasHydrated } = useAuthStore();
     const { setNotes, setNotebooks, setTags, setIsLoading, selectedNoteId, showTrash, selectedNotebookId, selectedTagId } = useNotesStore();
     const [isInitialized, setIsInitialized] = useState(false);
     const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -36,7 +36,10 @@ export default function MainLayout({
     }, []);
 
     useEffect(() => {
-        // Check auth on mount
+        // Wait for Zustand to hydrate from localStorage before checking auth
+        if (!hasHydrated) return;
+
+        // Check auth after hydration
         if (!isAuthenticated) {
             router.push('/login');
             return;
@@ -66,7 +69,16 @@ export default function MainLayout({
         };
 
         fetchData();
-    }, [isAuthenticated, token, showTrash, selectedNotebookId, selectedTagId]);
+    }, [hasHydrated, isAuthenticated, token, showTrash, selectedNotebookId, selectedTagId]);
+
+    // Wait for hydration before rendering anything
+    if (!hasHydrated) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!isAuthenticated) {
         return (

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import { useEditor, Editor } from '@tiptap/react';
+import dynamic from 'next/dynamic';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
@@ -12,14 +13,17 @@ import Underline from '@tiptap/extension-underline';
 import Typography from '@tiptap/extension-typography';
 import { ResizableImage } from './extensions/resizable-image';
 import { CodeBlockWithLanguage } from './extensions/code-block-language';
+import { LinkPreview } from './extensions/link-preview';
+import { VideoEmbed, getVideoEmbedInfo } from './extensions/video-embed';
 import { ImageEditorDialog, ImageData } from './image-editor-dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { useNotesStore } from '@/store/notes-store';
-import { notesApi, storageApi, Attachment } from '@/lib/api';
+import { notesApi, storageApi, metadataApi, Attachment } from '@/lib/api';
 import { EditorToolbar } from './editor-toolbar';
 import { SlashCommandMenu } from './slash-command-menu';
+import { PasteMenu, PasteOption } from './paste-menu';
 import { NoteActionsMenu } from './note-actions-menu';
 import { AttachmentList } from './attachment-list';
 import { ShareDialog } from '@/components/dialogs/share-dialog';
@@ -41,6 +45,15 @@ import {
     Tag,
     Users,
 } from 'lucide-react';
+
+// Dynamic import EditorContent to prevent SSR flushSync issues with React 19
+const EditorContent = dynamic(
+    () => import('@tiptap/react').then((mod) => mod.EditorContent),
+    {
+        ssr: false,
+        loading: () => <div className="mt-4 min-h-[200px] animate-pulse bg-muted/30 rounded-lg" />
+    }
+);
 
 interface NoteEditorProps {
     noteId: string;
@@ -71,7 +84,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     } | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Paste menu state
+    const [pasteMenuOpen, setPasteMenuOpen] = useState(false);
+    const [pasteMenuPosition, setPasteMenuPosition] = useState({ x: 0, y: 0 });
+    const [pendingPasteUrl, setPendingPasteUrl] = useState('');
+
     const editor = useEditor({
+        immediatelyRender: false, // Defer render to avoid flushSync conflict with React 19
+        shouldRerenderOnTransaction: false, // Prevent rerenders on every transaction
         extensions: [
             StarterKit.configure({
                 history: {
@@ -90,6 +110,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             }),
             ResizableImage,
             CodeBlockWithLanguage,
+            LinkPreview,
+            VideoEmbed,
             TaskList,
             TaskItem.configure({
                 nested: true,
@@ -104,11 +126,184 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             attributes: {
                 class: 'tiptap prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[calc(100vh-200px)]',
             },
+            handlePaste: (view, event) => {
+                const text = event.clipboardData?.getData('text/plain');
+                if (text && isValidUrl(text) && token) {
+                    // Pasted a URL - show paste menu instead of auto-inserting
+                    const { from } = view.state.selection;
+                    const coords = view.coordsAtPos(from);
+
+                    // Defer to avoid React rendering conflicts
+                    setTimeout(() => {
+                        setPendingPasteUrl(text.trim());
+                        setPasteMenuPosition({
+                            x: Math.min(coords.left, window.innerWidth - 280),
+                            y: coords.bottom + 8,
+                        });
+                        setPasteMenuOpen(true);
+                    }, 0);
+                    return true;
+                }
+                return false;
+            },
         },
         onUpdate: ({ editor }) => {
             debouncedSave(editor);
         },
     });
+
+    // Helper to check if text is a valid URL
+    const isValidUrl = (text: string): boolean => {
+        try {
+            const url = new URL(text.trim());
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    };
+
+    // Insert link preview with loading state, then fetch metadata
+    const insertLinkPreview = useCallback(async (url: string) => {
+        if (!editor || !token) return;
+
+        // Insert placeholder with loading state
+        const previewNode = {
+            type: 'linkPreview',
+            attrs: {
+                url,
+                title: null,
+                description: null,
+                image: null,
+                favicon: null,
+                domain: new URL(url).hostname,
+                loading: true,
+            },
+        };
+
+        editor.chain().focus().insertContent(previewNode).run();
+
+        try {
+            // Fetch metadata from backend
+            const metadata = await metadataApi.getLinkPreview(token, url);
+
+            // Find and update the loading preview
+            const { state } = editor;
+            let foundPos: number | null = null;
+
+            state.doc.descendants((node, pos) => {
+                if (node.type.name === 'linkPreview' && node.attrs.url === url && node.attrs.loading) {
+                    foundPos = pos;
+                    return false;
+                }
+                return true;
+            });
+
+            if (foundPos !== null) {
+                editor.chain()
+                    .focus()
+                    .command(({ tr }) => {
+                        tr.setNodeMarkup(foundPos!, undefined, {
+                            url,
+                            title: metadata.title,
+                            description: metadata.description,
+                            image: metadata.image,
+                            favicon: metadata.favicon,
+                            siteName: metadata.siteName,
+                            domain: metadata.domain,
+                            loading: false,
+                        });
+                        return true;
+                    })
+                    .run();
+            }
+        } catch (error) {
+            console.error('Failed to fetch link preview:', error);
+            // Update to show just the domain on error
+            const { state } = editor;
+            let foundPos: number | null = null;
+
+            state.doc.descendants((node, pos) => {
+                if (node.type.name === 'linkPreview' && node.attrs.url === url && node.attrs.loading) {
+                    foundPos = pos;
+                    return false;
+                }
+                return true;
+            });
+
+            if (foundPos !== null) {
+                editor.chain()
+                    .focus()
+                    .command(({ tr }) => {
+                        tr.setNodeMarkup(foundPos!, undefined, {
+                            url,
+                            title: new URL(url).hostname,
+                            description: null,
+                            image: null,
+                            favicon: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`,
+                            domain: new URL(url).hostname,
+                            loading: false,
+                        });
+                        return true;
+                    })
+                    .run();
+            }
+        }
+    }, [editor, token]);
+
+    // Handle paste menu option selection
+    const handlePasteOption = useCallback((option: PasteOption) => {
+        if (!editor || !pendingPasteUrl) return;
+
+        setPasteMenuOpen(false);
+
+        switch (option) {
+            case 'text':
+                // Insert as plain text
+                editor.chain().focus().insertContent(pendingPasteUrl).run();
+                break;
+
+            case 'link':
+                // Insert as clickable link
+                editor.chain()
+                    .focus()
+                    .insertContent({
+                        type: 'text',
+                        text: pendingPasteUrl,
+                        marks: [{ type: 'link', attrs: { href: pendingPasteUrl } }],
+                    })
+                    .run();
+                break;
+
+            case 'bookmark':
+                // Insert as link preview card
+                insertLinkPreview(pendingPasteUrl);
+                break;
+
+            case 'embed':
+                // Try to create embed for supported platforms using VideoEmbed node
+                const embedInfo = getVideoEmbedInfo(pendingPasteUrl);
+                if (embedInfo) {
+                    editor.chain()
+                        .focus()
+                        .insertContent({
+                            type: 'videoEmbed',
+                            attrs: {
+                                url: embedInfo.url,
+                                embedUrl: embedInfo.embedUrl,
+                                platform: embedInfo.platform,
+                            },
+                        })
+                        .run();
+                } else {
+                    // Fallback to bookmark if embed not supported
+                    insertLinkPreview(pendingPasteUrl);
+                    toast.info('Este link não suporta incorporação. Criado como marcador.');
+                }
+                break;
+        }
+
+        setPendingPasteUrl('');
+    }, [editor, pendingPasteUrl, insertLinkPreview]);
 
     // Load note and attachments
     useEffect(() => {
@@ -575,7 +770,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     {/* Slash Command Menu */}
                     {!isLocked && <SlashCommandMenu editor={editor} />}
 
-                    {/* Content */}
+                    {/* Content - dynamically imported to prevent SSR flushSync errors */}
                     <EditorContent
                         editor={editor}
                         className={cn(
@@ -619,6 +814,18 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     initialHeight={editingImage.height}
                 />
             )}
+
+            {/* Paste Menu - shown when pasting a URL */}
+            <PasteMenu
+                isOpen={pasteMenuOpen}
+                position={pasteMenuPosition}
+                url={pendingPasteUrl}
+                onSelect={handlePasteOption}
+                onClose={() => {
+                    setPasteMenuOpen(false);
+                    setPendingPasteUrl('');
+                }}
+            />
         </div>
     );
 }

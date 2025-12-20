@@ -106,31 +106,62 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             return;
         }
 
-        // Try API search first, fallback to local filtering
+        const lowerQuery = searchQuery.toLowerCase();
+
+        // Local search function (works without API)
+        const performLocalSearch = () => {
+            console.log('Performing local search for:', lowerQuery, 'in', notes.length, 'notes');
+            const filtered = notes.filter(note => {
+                if (note.isTrashed) return false;
+
+                // Search in title
+                const titleMatch = note.title?.toLowerCase().includes(lowerQuery) || false;
+
+                // Search in plainText or content
+                let contentMatch = false;
+                if (note.plainText) {
+                    contentMatch = note.plainText.toLowerCase().includes(lowerQuery);
+                } else if (note.content) {
+                    // Extract text from TipTap content
+                    const extractText = (node: any): string => {
+                        if (!node) return '';
+                        if (node.type === 'text') return node.text || '';
+                        if (node.content) return node.content.map(extractText).join(' ');
+                        return '';
+                    };
+                    const contentText = extractText(note.content);
+                    contentMatch = contentText.toLowerCase().includes(lowerQuery);
+                }
+
+                if (filterBy === 'title') return titleMatch;
+                if (filterBy === 'content') return contentMatch;
+                return titleMatch || contentMatch;
+            });
+            console.log('Local search found:', filtered.length, 'results');
+            return filtered;
+        };
+
+        // Run local search immediately for instant results
+        const localResults = performLocalSearch();
+        setSearchResults(localResults);
+
+        // Try API search if available (will update results if successful)
         if (token) {
             setIsSearching(true);
             try {
                 const result = await searchApi.search(token, searchQuery, {
                     limit: 20,
                 });
-                setSearchResults(result.hits);
-                setIsSearching(false);
-                return;
+                console.log('API search result:', result);
+                if (result && result.hits && result.hits.length > 0) {
+                    setSearchResults(result.hits);
+                }
             } catch (error) {
-                console.error('API search failed, using local search:', error);
+                console.error('API search failed:', error);
+                // Keep local results
             }
             setIsSearching(false);
         }
-
-        // Local fallback search
-        const lowerQuery = searchQuery.toLowerCase();
-        const filtered = notes.filter(note => {
-            if (note.isTrashed) return false;
-            const titleMatch = note.title.toLowerCase().includes(lowerQuery);
-            const contentMatch = note.plainText?.toLowerCase().includes(lowerQuery);
-            return filterBy === 'title' ? titleMatch : (filterBy === 'content' ? contentMatch : (titleMatch || contentMatch));
-        });
-        setSearchResults(filtered);
     }, [token, notes, filterBy]);
 
     // Keyboard navigation
@@ -176,6 +207,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
                 <Dialog.Content className="fixed top-[15%] left-1/2 -translate-x-1/2 w-full max-w-2xl bg-card border rounded-xl shadow-2xl z-50 overflow-hidden">
+                    {/* Visually hidden title for accessibility */}
+                    <Dialog.Title className="sr-only">Pesquisar notas</Dialog.Title>
+
                     {/* Search Input */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b">
                         <Search className="w-5 h-5 text-muted-foreground shrink-0" />

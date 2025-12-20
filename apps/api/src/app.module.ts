@@ -8,6 +8,7 @@ import { TagsModule } from './tags/tags.module';
 import { SharesModule } from './shares/shares.module';
 import { SearchModule } from './search/search.module';
 import { StorageModule } from './storage/storage.module';
+import { MetadataModule } from './metadata/metadata.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -27,6 +28,7 @@ import { RedisModule } from './redis/redis.module';
         SharesModule,
         SearchModule,
         StorageModule,
+        MetadataModule,
     ],
 })
 export class AppModule { }
