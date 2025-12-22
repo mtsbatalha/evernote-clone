@@ -21,6 +21,7 @@ import {
     User,
     X,
 } from 'lucide-react';
+import { ImportNotesDialog } from './import-notes-dialog';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -51,6 +52,7 @@ export function AccountSettingsDialog({ children }: AccountSettingsDialogProps) 
     // Backup state
     const [isCreatingBackup, setIsCreatingBackup] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
+    const [showImportDialog, setShowImportDialog] = useState(false);
 
     const handleOpenChange = (isOpen: boolean) => {
         setOpen(isOpen);
@@ -429,6 +431,31 @@ export function AccountSettingsDialog({ children }: AccountSettingsDialogProps) 
 
                         {activeTab === 'data' && (
                             <div className="space-y-6">
+                                {/* Import Notes */}
+                                <div className="p-4 rounded-lg border bg-muted/30">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                                            <FileUp className="w-5 h-5 text-purple-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-medium">Importar Notas</h4>
+                                            <p className="text-sm text-muted-foreground mb-3">
+                                                Importe notas do Evernote (.enex), HTML ou Markdown.
+                                            </p>
+                                            <button
+                                                onClick={() => setShowImportDialog(true)}
+                                                className={cn(
+                                                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium',
+                                                    'bg-purple-600 text-white hover:bg-purple-700 transition-colors'
+                                                )}
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                Importar Arquivos
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Backup */}
                                 <div className="p-4 rounded-lg border bg-muted/30">
                                     <div className="flex items-start gap-4">
@@ -524,6 +551,12 @@ export function AccountSettingsDialog({ children }: AccountSettingsDialogProps) 
                     </div>
                 </Dialog.Content>
             </Dialog.Portal>
+
+            {/* Import Notes Dialog */}
+            <ImportNotesDialog
+                open={showImportDialog}
+                onOpenChange={setShowImportDialog}
+            />
         </Dialog.Root>
     );
 }

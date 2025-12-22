@@ -58,12 +58,14 @@ interface NotesState {
     updateTag: (id: string, updates: Partial<Tag>) => void;
     removeTag: (id: string) => void;
 
-    selectNote: (id: string | null) => void;
+    selectNote: (id: string | null, highlightQuery?: string) => void;
     selectNotebook: (id: string | null) => void;
     selectTag: (id: string | null) => void;
     setShowTrash: (show: boolean) => void;
     setIsLoading: (loading: boolean) => void;
     setSearchQuery: (query: string) => void;
+    searchHighlight: string | null;
+    clearSearchHighlight: () => void;
 }
 
 export const useNotesStore = create<NotesState>((set) => ({
@@ -76,6 +78,7 @@ export const useNotesStore = create<NotesState>((set) => ({
     showTrash: false,
     isLoading: false,
     searchQuery: '',
+    searchHighlight: null,
 
     setNotes: (notes) => set({ notes }),
     addNote: (note) => set((state) => ({ notes: [note, ...state.notes] })),
@@ -117,7 +120,7 @@ export const useNotesStore = create<NotesState>((set) => ({
             selectedTagId: state.selectedTagId === id ? null : state.selectedTagId,
         })),
 
-    selectNote: (id) => set({ selectedNoteId: id }),
+    selectNote: (id, highlightQuery) => set({ selectedNoteId: id, searchHighlight: highlightQuery || null }),
     selectNotebook: (id) =>
         set({ selectedNotebookId: id, selectedTagId: null, showTrash: false }),
     selectTag: (id) =>
@@ -130,4 +133,5 @@ export const useNotesStore = create<NotesState>((set) => ({
         }),
     setIsLoading: (loading) => set({ isLoading: loading }),
     setSearchQuery: (query) => set({ searchQuery: query }),
+    clearSearchHighlight: () => set({ searchHighlight: null }),
 }));

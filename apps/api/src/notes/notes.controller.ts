@@ -49,6 +49,12 @@ export class NotesController {
         return this.notesService.create(user.id, dto);
     }
 
+    @Post('bulk')
+    @ApiOperation({ summary: 'Create multiple notes at once (for import)' })
+    async bulkCreate(@CurrentUser() user: User, @Body() body: { notes: CreateNoteDto[] }) {
+        return this.notesService.bulkCreate(user.id, body.notes);
+    }
+
     @Patch(':id')
     @ApiOperation({ summary: 'Update a note' })
     async update(

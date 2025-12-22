@@ -23,6 +23,7 @@ import {
     Paperclip,
     Quote,
     Redo,
+    Search,
     Strikethrough,
     Underline as UnderlineIcon,
     Undo,
@@ -33,9 +34,10 @@ interface EditorToolbarProps {
     noteId?: string;
     token?: string;
     onAttachmentUpload?: (attachment: Attachment) => void;
+    onSearch?: () => void;
 }
 
-export function EditorToolbar({ editor, noteId, token, onAttachmentUpload }: EditorToolbarProps) {
+export function EditorToolbar({ editor, noteId, token, onAttachmentUpload, onSearch }: EditorToolbarProps) {
     const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
 
     const ToolbarButton = ({
@@ -251,6 +253,19 @@ export function EditorToolbar({ editor, noteId, token, onAttachmentUpload }: Edi
                             icon={<Paperclip className="w-4 h-4" />}
                             title="Anexar arquivo"
                         />
+                    </>
+                )}
+
+                {/* Search in note */}
+                {onSearch && (
+                    <>
+                        <Separator />
+                        <ToolbarButton
+                            onClick={onSearch}
+                            title="Buscar na nota (Ctrl+F)"
+                        >
+                            <Search className="w-4 h-4" />
+                        </ToolbarButton>
                     </>
                 )}
             </div>

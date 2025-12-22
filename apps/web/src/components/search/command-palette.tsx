@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { format, isToday, isYesterday, isThisWeek, subDays, subWeeks, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
@@ -13,6 +14,7 @@ import {
     ArrowDown,
     ArrowUp,
     Calendar,
+    Check,
     ChevronDown,
     Command,
     CornerDownLeft,
@@ -34,6 +36,7 @@ interface CommandPaletteProps {
 
 type SortOption = 'recent' | 'created' | 'title';
 type FilterOption = 'all' | 'title' | 'content';
+type DateFilter = 'all' | 'today' | 'week' | 'month';
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     const { token } = useAuthStore();
@@ -44,7 +47,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [sortBy, setSortBy] = useState<SortOption>('recent');
     const [filterBy, setFilterBy] = useState<FilterOption>('all');
-    const [showFilters, setShowFilters] = useState(false);
+    const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Reset state when opening
@@ -57,9 +60,41 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         }
     }, [open]);
 
+    // Re-run search when filterBy changes (if there's a query)
+    useEffect(() => {
+        if (query.trim()) {
+            // Perform local search with current filter
+            const lowerQuery = query.toLowerCase();
+            const filtered = notes.filter(note => {
+                if (note.isTrashed) return false;
+                const titleMatch = note.title?.toLowerCase().includes(lowerQuery) || false;
+                let contentMatch = false;
+                if (note.plainText) {
+                    contentMatch = note.plainText.toLowerCase().includes(lowerQuery);
+                }
+                if (filterBy === 'title') return titleMatch;
+                if (filterBy === 'content') return contentMatch;
+                return titleMatch || contentMatch;
+            });
+            setSearchResults(filtered);
+        }
+    }, [filterBy, query, notes]);
+
     // Group notes by date
     const groupedNotes = useMemo(() => {
-        const items = searchResults || notes.filter(n => !n.isTrashed);
+        let items = searchResults || notes.filter(n => !n.isTrashed);
+
+        // Apply date filter
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            items = items.filter(note => {
+                const noteDate = new Date(note.updatedAt);
+                if (dateFilter === 'today') return isToday(noteDate);
+                if (dateFilter === 'week') return noteDate >= subWeeks(now, 1);
+                if (dateFilter === 'month') return noteDate >= subMonths(now, 1);
+                return true;
+            });
+        }
 
         // Sort
         const sorted = [...items].sort((a, b) => {
@@ -89,7 +124,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         if (older.length) groups.push({ label: 'Mais antigos', notes: older });
 
         return groups;
-    }, [notes, searchResults, sortBy]);
+    }, [notes, searchResults, sortBy, dateFilter]);
 
     // Flatten for keyboard navigation
     const allItems = useMemo(() => {
@@ -178,7 +213,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             case 'Enter':
                 e.preventDefault();
                 if (allItems[selectedIndex]) {
-                    selectNote(allItems[selectedIndex].id);
+                    selectNote(allItems[selectedIndex].id, query.trim() || undefined);
                     onOpenChange(false);
                 }
                 break;
@@ -232,50 +267,153 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
                     {/* Filters */}
                     <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
+                        {/* Sort Dropdown */}
+                        <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                                <button
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
+                                        sortBy !== 'recent' ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-accent',
+                                        'border'
+                                    )}
+                                >
+                                    <SortAsc className="w-3.5 h-3.5" />
+                                    <span>{sortBy === 'recent' ? 'Recentes' : sortBy === 'title' ? 'Título' : 'Criação'}</span>
+                                    <ChevronDown className="w-3 h-3" />
+                                </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                                <DropdownMenu.Content className="min-w-[160px] bg-card border rounded-lg shadow-xl p-1 z-[100]">
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setSortBy('recent')}
+                                    >
+                                        {sortBy === 'recent' && <Check className="w-4 h-4" />}
+                                        <span className={sortBy !== 'recent' ? 'pl-6' : ''}>Mais recentes</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setSortBy('created')}
+                                    >
+                                        {sortBy === 'created' && <Check className="w-4 h-4" />}
+                                        <span className={sortBy !== 'created' ? 'pl-6' : ''}>Data de criação</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setSortBy('title')}
+                                    >
+                                        {sortBy === 'title' && <Check className="w-4 h-4" />}
+                                        <span className={sortBy !== 'title' ? 'pl-6' : ''}>Título (A-Z)</span>
+                                    </DropdownMenu.Item>
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
+
+                        {/* Filter By Dropdown */}
+                        <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                                <button
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
+                                        filterBy !== 'all' ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-accent',
+                                        'border'
+                                    )}
+                                >
+                                    <span>{filterBy === 'all' ? 'Tudo' : filterBy === 'title' ? 'Título' : 'Conteúdo'}</span>
+                                    <ChevronDown className="w-3 h-3" />
+                                </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                                <DropdownMenu.Content className="min-w-[160px] bg-card border rounded-lg shadow-xl p-1 z-[100]">
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setFilterBy('all')}
+                                    >
+                                        {filterBy === 'all' && <Check className="w-4 h-4" />}
+                                        <span className={filterBy !== 'all' ? 'pl-6' : ''}>Tudo</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setFilterBy('title')}
+                                    >
+                                        {filterBy === 'title' && <Check className="w-4 h-4" />}
+                                        <span className={filterBy !== 'title' ? 'pl-6' : ''}>Somente título</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setFilterBy('content')}
+                                    >
+                                        {filterBy === 'content' && <Check className="w-4 h-4" />}
+                                        <span className={filterBy !== 'content' ? 'pl-6' : ''}>Somente conteúdo</span>
+                                    </DropdownMenu.Item>
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
+
+                        {/* Criado por - placeholder, single user app */}
                         <button
-                            onClick={() => setSortBy(s => s === 'recent' ? 'title' : s === 'title' ? 'created' : 'recent')}
                             className={cn(
                                 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
-                                'hover:bg-accent border'
+                                'hover:bg-accent border opacity-50 cursor-not-allowed'
                             )}
-                        >
-                            <SortAsc className="w-3.5 h-3.5" />
-                            <span>Ordenar</span>
-                            <ChevronDown className="w-3 h-3" />
-                        </button>
-                        <button
-                            onClick={() => setFilterBy(f => f === 'all' ? 'title' : f === 'title' ? 'content' : 'all')}
-                            className={cn(
-                                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
-                                filterBy !== 'all' ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-accent',
-                                'border'
-                            )}
-                        >
-                            <span>
-                                {filterBy === 'all' ? 'Aa' : filterBy === 'title' ? 'Título' : 'Conteúdo'}
-                            </span>
-                            {filterBy === 'title' && <span className="text-xs">Somente título</span>}
-                        </button>
-                        <button
-                            className={cn(
-                                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
-                                'hover:bg-accent border'
-                            )}
+                            title="Em breve"
                         >
                             <User className="w-3.5 h-3.5" />
                             <span>Criado por</span>
-                            <ChevronDown className="w-3 h-3" />
                         </button>
-                        <button
-                            className={cn(
-                                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
-                                'hover:bg-accent border'
-                            )}
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Data</span>
-                            <ChevronDown className="w-3 h-3" />
-                        </button>
+
+                        {/* Date Filter Dropdown */}
+                        <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                                <button
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors',
+                                        dateFilter !== 'all' ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-accent',
+                                        'border'
+                                    )}
+                                >
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    <span>
+                                        {dateFilter === 'all' ? 'Qualquer data' :
+                                            dateFilter === 'today' ? 'Hoje' :
+                                                dateFilter === 'week' ? 'Esta semana' : 'Este mês'}
+                                    </span>
+                                    <ChevronDown className="w-3 h-3" />
+                                </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                                <DropdownMenu.Content className="min-w-[160px] bg-card border rounded-lg shadow-xl p-1 z-[100]">
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setDateFilter('all')}
+                                    >
+                                        {dateFilter === 'all' && <Check className="w-4 h-4" />}
+                                        <span className={dateFilter !== 'all' ? 'pl-6' : ''}>Qualquer data</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setDateFilter('today')}
+                                    >
+                                        {dateFilter === 'today' && <Check className="w-4 h-4" />}
+                                        <span className={dateFilter !== 'today' ? 'pl-6' : ''}>Hoje</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setDateFilter('week')}
+                                    >
+                                        {dateFilter === 'week' && <Check className="w-4 h-4" />}
+                                        <span className={dateFilter !== 'week' ? 'pl-6' : ''}>Esta semana</span>
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-accent outline-none"
+                                        onSelect={() => setDateFilter('month')}
+                                    >
+                                        {dateFilter === 'month' && <Check className="w-4 h-4" />}
+                                        <span className={dateFilter !== 'month' ? 'pl-6' : ''}>Este mês</span>
+                                    </DropdownMenu.Item>
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
                     </div>
 
                     {/* Results */}
@@ -299,7 +437,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                                             <button
                                                 key={note.id}
                                                 onClick={() => {
-                                                    selectNote(note.id);
+                                                    selectNote(note.id, query.trim() || undefined);
                                                     onOpenChange(false);
                                                 }}
                                                 className={cn(

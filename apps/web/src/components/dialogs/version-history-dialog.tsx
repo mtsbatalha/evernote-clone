@@ -53,6 +53,13 @@ export function VersionHistoryDialog({
         controlledOnOpenChange?.(value);
     };
 
+    // Load versions when dialog opens (handles controlled mode)
+    useEffect(() => {
+        if (open) {
+            loadVersions();
+        }
+    }, [open]);
+
     const loadVersions = async () => {
         if (!token) return;
         setIsLoading(true);
@@ -84,9 +91,11 @@ export function VersionHistoryDialog({
 
     return (
         <Dialog.Root open={open} onOpenChange={(o) => { setOpen(o); if (o) loadVersions(); }}>
-            <Dialog.Trigger asChild>
-                {children}
-            </Dialog.Trigger>
+            {children && (
+                <Dialog.Trigger asChild>
+                    {children}
+                </Dialog.Trigger>
+            )}
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
                 <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-card border rounded-xl shadow-xl z-50 p-6 max-h-[80vh] flex flex-col">

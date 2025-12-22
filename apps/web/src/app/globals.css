@@ -205,3 +205,39 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/30;
 }
+
+/* Search highlight - highlighter style */
+.search-highlight-flash {
+  background-color: rgba(250, 204, 21, 0.7) !important;
+  padding: 2px 4px;
+  border-radius: 2px;
+  animation: highlight-flash 3s ease-out forwards;
+}
+
+@keyframes highlight-flash {
+
+  0%,
+  70% {
+    background-color: rgba(250, 204, 21, 0.7);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Search in note - all matches highlight */
+.search-match-highlight {
+  background-color: rgba(250, 204, 21, 0.4);
+  padding: 1px 0;
+  border-radius: 2px;
+}
+
+/* Search in note - current match highlight */
+.search-match-current {
+  background-color: rgba(249, 115, 22, 0.7) !important;
+  padding: 1px 0;
+  border-radius: 2px;
+  outline: 2px solid rgba(249, 115, 22, 0.8);
+  outline-offset: 1px;
+}

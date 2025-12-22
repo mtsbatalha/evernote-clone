@@ -100,10 +100,10 @@ export default function MainLayout({
     }
 
     return (
-        <div className="min-h-screen flex bg-background">
+        <div className="h-screen flex bg-background overflow-hidden">
             <Sidebar />
             <NoteList />
-            <main className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 flex flex-col min-w-0 h-screen">
                 {selectedNoteId ? (
                     <NoteEditor noteId={selectedNoteId} />
                 ) : (

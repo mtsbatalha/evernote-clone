@@ -89,6 +89,34 @@ export class NotesService {
         return note;
     }
 
+    async bulkCreate(userId: string, notes: CreateNoteDto[]): Promise<Note[]> {
+        // Create all notes in a transaction for better performance
+        const createdNotes = await this.prisma.$transaction(
+            notes.map((dto) =>
+                this.prisma.note.create({
+                    data: {
+                        title: dto.title || 'Untitled',
+                        content: dto.content,
+                        authorId: userId,
+                        notebookId: dto.notebookId,
+                        tags: dto.tagIds?.length
+                            ? { create: dto.tagIds.map((tagId) => ({ tagId })) }
+                            : undefined,
+                    },
+                    include: {
+                        notebook: true,
+                        tags: { include: { tag: true } },
+                    },
+                })
+            )
+        );
+
+        // Index all notes for search (in parallel for speed)
+        await Promise.all(createdNotes.map((note) => this.searchService.indexNote(note)));
+
+        return createdNotes;
+    }
+
     async update(id: string, userId: string, dto: UpdateNoteDto): Promise<Note> {
         const note = await this.findById(id, userId);
         await this.checkAccess(note, userId, 'WRITE');

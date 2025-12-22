@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useEditor, Editor } from '@tiptap/react';
-import dynamic from 'next/dynamic';
+import { useEditor, Editor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
@@ -30,6 +29,7 @@ import { ShareDialog } from '@/components/dialogs/share-dialog';
 import { VersionHistoryDialog } from '@/components/dialogs/version-history-dialog';
 import { TagsDialog } from '@/components/dialogs/tags-dialog';
 import { ExportDialog } from '@/components/dialogs/export-dialog';
+import { SearchInNote } from './search-in-note';
 import { tiptapToHtml } from '@/lib/export-utils';
 import {
     Cloud,
@@ -44,16 +44,11 @@ import {
     Star,
     Tag,
     Users,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
 
-// Dynamic import EditorContent to prevent SSR flushSync issues with React 19
-const EditorContent = dynamic(
-    () => import('@tiptap/react').then((mod) => mod.EditorContent),
-    {
-        ssr: false,
-        loading: () => <div className="mt-4 min-h-[200px] animate-pulse bg-muted/30 rounded-lg" />
-    }
-);
+
 
 interface NoteEditorProps {
     noteId: string;
@@ -61,7 +56,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({ noteId }: NoteEditorProps) {
     const { token } = useAuthStore();
-    const { updateNote } = useNotesStore();
+    const { updateNote, searchHighlight, clearSearchHighlight } = useNotesStore();
     const [note, setNote] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -83,11 +78,17 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         updateAttributes: (attrs: Record<string, any>) => void;
     } | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isInitialLoadRef = useRef(true); // Flag to skip auto-save on initial content load
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Paste menu state
     const [pasteMenuOpen, setPasteMenuOpen] = useState(false);
     const [pasteMenuPosition, setPasteMenuPosition] = useState({ x: 0, y: 0 });
     const [pendingPasteUrl, setPendingPasteUrl] = useState('');
+
+    // Local search state (Ctrl+F)
+    const [localSearchOpen, setLocalSearchOpen] = useState(false);
+    const [localSearchQuery, setLocalSearchQuery] = useState('');
 
     const editor = useEditor({
         immediatelyRender: false, // Defer render to avoid flushSync conflict with React 19
@@ -148,6 +149,10 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             },
         },
         onUpdate: ({ editor }) => {
+            // Skip auto-save during initial content load
+            if (isInitialLoadRef.current) {
+                return;
+            }
             debouncedSave(editor);
         },
     });
@@ -315,15 +320,25 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 const noteData = await notesApi.getById(token, noteId);
                 setNote(noteData);
                 setTitle(noteData.title);
-                setNoteTags(noteData.tags || []);
+                // Tags come from API in format { tag: {...} } - unwrap them
+                const tagsList = (noteData.tags || []).map((t: any) => t.tag || t);
+                setNoteTags(tagsList);
 
                 if (editor) {
+                    // Set flag to skip auto-save during content load
+                    isInitialLoadRef.current = true;
+
                     // Set content or clear if empty (new note)
                     if (noteData.content) {
                         editor.commands.setContent(noteData.content);
                     } else {
                         editor.commands.clearContent();
                     }
+
+                    // Allow auto-save after content is loaded (with delay to skip initial onUpdate)
+                    setTimeout(() => {
+                        isInitialLoadRef.current = false;
+                    }, 100);
                 }
 
                 // Load attachments
@@ -343,6 +358,30 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
 
         loadNote();
     }, [noteId, token, editor]);
+
+    // Ctrl+F keyboard shortcut for in-note search
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                setLocalSearchOpen(true);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Open local search handler (for toolbar button)
+    const handleOpenLocalSearch = useCallback(() => {
+        setLocalSearchOpen(true);
+    }, []);
+
+    // Close local search handler
+    const handleCloseLocalSearch = useCallback(() => {
+        setLocalSearchOpen(false);
+        setLocalSearchQuery('');
+    }, []);
 
     // Debounced save
     const debouncedSave = useCallback(
@@ -718,6 +757,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
 
             {/* Editor */}
             <div
+                ref={scrollContainerRef}
                 className={cn(
                     "flex-1 overflow-y-auto group relative",
                     isDraggingFile && "ring-2 ring-primary ring-inset bg-primary/5"
@@ -726,6 +766,37 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
+                {/* Floating scroll navigation buttons */}
+                <div className="fixed right-6 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-2">
+                    <button
+                        onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="p-2 rounded-full bg-background/50 border border-border/50 text-muted-foreground/40 hover:text-foreground hover:bg-background hover:border-border transition-all shadow-sm"
+                        title="Ir para o início"
+                    >
+                        <ChevronUp className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'smooth' })}
+                        className="p-2 rounded-full bg-background/50 border border-border/50 text-muted-foreground/40 hover:text-foreground hover:bg-background hover:border-border transition-all shadow-sm"
+                        title="Ir para o final"
+                    >
+                        <ChevronDown className="w-5 h-5" />
+                    </button>
+                </div>
+                {/* Search in note navigation - appears when coming from search OR local Ctrl+F */}
+                {((searchHighlight && !isLoading && editor) || (localSearchOpen && editor)) && (
+                    <SearchInNote
+                        searchQuery={searchHighlight || localSearchQuery}
+                        onClose={() => {
+                            if (searchHighlight) {
+                                clearSearchHighlight();
+                            }
+                            handleCloseLocalSearch();
+                        }}
+                        onQueryChange={setLocalSearchQuery}
+                        showInput={localSearchOpen}
+                    />
+                )}
                 {/* Drop overlay */}
                 {isDraggingFile && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
@@ -735,6 +806,24 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                             </div>
                             <span className="text-lg font-medium">Solte o arquivo aqui</span>
                             <span className="text-sm text-muted-foreground">Imagens serão inseridas no editor</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Sticky Toolbar - directly in scroll container for sticky to work */}
+                {editor && !isLocked && (
+                    <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b">
+                        <div className={cn(
+                            'mx-auto px-6 py-3',
+                            isFullWidth ? 'max-w-none px-12' : 'max-w-4xl'
+                        )}>
+                            <EditorToolbar
+                                editor={editor}
+                                noteId={noteId}
+                                token={token || undefined}
+                                onAttachmentUpload={handleAttachmentUpload}
+                                onSearch={handleOpenLocalSearch}
+                            />
                         </div>
                     </div>
                 )}
@@ -757,30 +846,24 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                         )}
                     />
 
-                    {/* Toolbar */}
-                    {editor && !isLocked && (
-                        <EditorToolbar
-                            editor={editor}
-                            noteId={noteId}
-                            token={token || undefined}
-                            onAttachmentUpload={handleAttachmentUpload}
-                        />
-                    )}
-
                     {/* Slash Command Menu */}
                     {!isLocked && <SlashCommandMenu editor={editor} />}
 
-                    {/* Content - dynamically imported to prevent SSR flushSync errors */}
-                    <EditorContent
-                        editor={editor}
-                        className={cn(
-                            'mt-4',
-                            isSmallText && 'text-sm',
-                            isLocked && 'pointer-events-none opacity-70',
-                            fontStyle === 'serif' && 'font-serif',
-                            fontStyle === 'mono' && 'font-mono'
-                        )}
-                    />
+                    {/* Content */}
+                    {editor ? (
+                        <EditorContent
+                            editor={editor}
+                            className={cn(
+                                'mt-4',
+                                isSmallText && 'text-sm',
+                                isLocked && 'pointer-events-none opacity-70',
+                                fontStyle === 'serif' && 'font-serif',
+                                fontStyle === 'mono' && 'font-mono'
+                            )}
+                        />
+                    ) : (
+                        <div className="mt-4 min-h-[200px] animate-pulse bg-muted/30 rounded-lg" />
+                    )}
 
                     {/* Attachments List */}
                     {token && attachments.length > 0 && (

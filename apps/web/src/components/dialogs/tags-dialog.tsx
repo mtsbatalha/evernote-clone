@@ -58,7 +58,7 @@ export function TagsDialog({ noteId, noteTags, onTagsUpdate, children }: TagsDia
         setSelectedTags(newSelection);
 
         try {
-            await notesApi.update(token, noteId, { tagIds: newSelection });
+            await notesApi.updateTags(token, noteId, newSelection);
             const updatedTags = tags.filter(t => newSelection.includes(t.id));
             onTagsUpdate?.(updatedTags);
         } catch (error) {

@@ -61,6 +61,9 @@ export const notesApi = {
     create: (token: string, data: { title?: string; content?: any; notebookId?: string }) =>
         fetchApi<any>('/notes', { method: 'POST', body: JSON.stringify(data), token }),
 
+    bulkCreate: (token: string, notes: { title?: string; content?: any; notebookId?: string }[]) =>
+        fetchApi<any[]>('/notes/bulk', { method: 'POST', body: JSON.stringify({ notes }), token }),
+
     update: (token: string, id: string, data: any) =>
         fetchApi<any>(`/notes/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
 
@@ -75,6 +78,9 @@ export const notesApi = {
 
     restoreVersion: (token: string, noteId: string, versionId: string) =>
         fetchApi<any>(`/notes/${noteId}/versions/${versionId}/restore`, { method: 'POST', token }),
+
+    updateTags: (token: string, noteId: string, tagIds: string[]) =>
+        fetchApi<any>(`/notes/${noteId}/tags`, { method: 'PATCH', body: JSON.stringify({ tagIds }), token }),
 };
 
 // Notebooks API
