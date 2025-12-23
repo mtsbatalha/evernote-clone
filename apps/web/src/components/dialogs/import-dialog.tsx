@@ -54,9 +54,9 @@ export function ImportDialog({ children, onImportComplete }: ImportDialogProps) 
                 // Markdown import
                 // Try to extract title from frontmatter or first heading
                 const frontmatterMatch = text.match(/^---\s*\n([\s\S]*?)\n---/);
-                if (frontmatterMatch) {
+                if (frontmatterMatch && frontmatterMatch[1]) {
                     const titleMatch = frontmatterMatch[1].match(/title:\s*(.+)/);
-                    if (titleMatch) title = titleMatch[1].trim();
+                    if (titleMatch && titleMatch[1]) title = titleMatch[1].trim();
                 }
 
                 const headingMatch = text.match(/^#\s+(.+)$/m);
