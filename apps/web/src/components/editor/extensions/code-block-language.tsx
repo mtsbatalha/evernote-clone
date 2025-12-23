@@ -44,8 +44,8 @@ function CodeBlockView({ node, updateAttributes, extension }: CodeBlockViewProps
     const [copied, setCopied] = useState(false);
     const language = node.attrs.language || '';
 
-    const defaultLang = LANGUAGES[0];
-    const currentLang = LANGUAGES.find(l => l.value === language) ?? defaultLang;
+    const defaultLang = LANGUAGES[0]!;
+    const currentLang = LANGUAGES.find(l => l.value === language) || defaultLang;
 
     const handleLanguageChange = useCallback((lang: string) => {
         updateAttributes({ language: lang });
