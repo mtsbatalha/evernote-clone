@@ -526,8 +526,8 @@ Resposta detalhada aqui...
                         `,
                     };
 
-                    const template = templates[choice || '1'] || templates['1'];
-                    editor.chain().focus().insertContent(template).run();
+                    const template = templates[choice || '1'] || templates['1']!;
+                    editor.chain().focus().insertContent(template!).run();
                     toast.success('Template IA inserido!');
                 },
             },
