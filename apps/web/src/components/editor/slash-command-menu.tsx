@@ -579,7 +579,7 @@ ${code}
                     createFileInput('.html,.htm', (content, fileName) => {
                         // Extract body content if full HTML document
                         const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-                        const htmlContent = bodyMatch ? bodyMatch[1] : content;
+                        const htmlContent = bodyMatch?.[1] || content;
                         editor.chain().focus().insertContent(htmlContent).run();
                         toast.success(`HTML importado de ${fileName}!`);
                     });
