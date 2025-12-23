@@ -63,8 +63,8 @@ export function SearchInNote({ searchQuery, onClose, onQueryChange, showInput = 
                 range.setEnd(node, index + searchQuery.length);
 
                 const rects = range.getClientRects();
-                if (rects.length > 0) {
-                    const rect = rects[0];
+                const rect = rects[0];
+                if (rects.length > 0 && rect) {
                     newMatches.push({
                         top: rect.top - containerRect.top + scrollTop,
                         left: rect.left - containerRect.left,
