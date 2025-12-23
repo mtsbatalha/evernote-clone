@@ -113,7 +113,7 @@ export WS_PORT=$WS_PORT
 export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
 
 # Start API in background using pnpm to resolve node_modules correctly
-nohup pnpm --filter @evernote-clone/api exec node dist/main.js > "$API_LOG_FILE" 2>&1 &
+nohup pnpm --filter @evernote-clone/api run start > "$API_LOG_FILE" 2>&1 &
 API_PID=$!
 echo $API_PID > "$API_PID_FILE"
 
