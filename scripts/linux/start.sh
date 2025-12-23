@@ -105,15 +105,15 @@ fi
 
 log_info "Starting API server on port $API_PORT..."
 
-cd "$PROJECT_ROOT/apps/api"
+cd "$PROJECT_ROOT"
 
 # Export environment variables
 export PORT=$API_PORT
 export WS_PORT=$WS_PORT
 export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
 
-# Start API in background
-nohup node dist/main.js > "$API_LOG_FILE" 2>&1 &
+# Start API in background using pnpm to resolve node_modules correctly
+nohup pnpm --filter @evernote-clone/api exec node dist/main.js > "$API_LOG_FILE" 2>&1 &
 API_PID=$!
 echo $API_PID > "$API_PID_FILE"
 
