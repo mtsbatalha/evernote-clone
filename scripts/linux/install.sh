@@ -174,6 +174,11 @@ log_success "Database setup complete"
 log_info "Building applications..."
 cd "$PROJECT_ROOT"
 
+# Build database package first (includes Prisma types)
+log_info "Building database package..."
+pnpm --filter @evernote-clone/database build
+log_success "Database package built"
+
 log_info "Building API..."
 pnpm --filter @evernote-clone/api build
 log_success "API built"
