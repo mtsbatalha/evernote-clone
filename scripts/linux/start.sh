@@ -138,8 +138,8 @@ cd "$PROJECT_ROOT/apps/web"
 export PORT=$WEB_PORT
 export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
 
-# Start Web in background
-nohup pnpm exec next start -p $WEB_PORT > "$WEB_LOG_FILE" 2>&1 &
+# Start Web in background (listen on all interfaces for Docker/proxy access)
+nohup pnpm exec next start -p $WEB_PORT -H 0.0.0.0 > "$WEB_LOG_FILE" 2>&1 &
 WEB_PID=$!
 echo $WEB_PID > "$WEB_PID_FILE"
 
