@@ -84,6 +84,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isInitialLoadRef = useRef(true); // Flag to skip auto-save on initial content load
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Paste menu state
     const [pasteMenuOpen, setPasteMenuOpen] = useState(false);
@@ -366,6 +367,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
 
         loadNote();
     }, [noteId, token, editor]);
+
+    // Auto-resize title textarea when title changes or on initial load
+    useEffect(() => {
+        if (titleTextareaRef.current) {
+            titleTextareaRef.current.style.height = 'auto';
+            titleTextareaRef.current.style.height = titleTextareaRef.current.scrollHeight + 'px';
+        }
+    }, [title]);
 
     // Ctrl+F keyboard shortcut for in-note search
     useEffect(() => {
@@ -842,6 +851,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 )}>
                     {/* Title */}
                     <textarea
+                        ref={titleTextareaRef}
                         value={title}
                         onChange={(e) => {
                             handleTitleChange(e.target.value);
@@ -849,22 +859,16 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
                         }}
-                        onInput={(e) => {
-                            // Auto-resize on input
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = target.scrollHeight + 'px';
-                        }}
                         placeholder="Sem título"
                         disabled={isLocked}
                         rows={1}
                         className={cn(
-                            'w-full font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6 resize-none overflow-hidden',
+                            'w-full font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6 resize-none overflow-hidden whitespace-pre-wrap break-words',
                             // Dynamic text size based on title length
                             title.length > 60 ? 'text-xl' : title.length > 40 ? 'text-2xl' : isSmallText ? 'text-2xl' : 'text-4xl',
                             isLocked && 'cursor-not-allowed opacity-70'
                         )}
-                        style={{ lineHeight: '1.2' }}
+                        style={{ lineHeight: '1.2', minHeight: '48px' }}
                     />
 
                     {/* Slash Command Menu */}
