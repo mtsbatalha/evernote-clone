@@ -60,7 +60,7 @@ export function ImportDialog({ children, onImportComplete }: ImportDialogProps) 
                 }
 
                 const headingMatch = text.match(/^#\s+(.+)$/m);
-                if (headingMatch && !frontmatterMatch) {
+                if (headingMatch?.[1] && !frontmatterMatch) {
                     title = headingMatch[1];
                 }
 
