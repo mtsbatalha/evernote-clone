@@ -151,8 +151,8 @@ cd "$PROJECT_ROOT"
 # Run Prisma migrations
 log_info "Running database migrations..."
 cd "$PROJECT_ROOT/apps/api"
-npx prisma generate
-npx prisma db push
+pnpm exec prisma generate
+pnpm exec prisma db push
 log_success "Database setup complete"
 
 # ==============================================================================

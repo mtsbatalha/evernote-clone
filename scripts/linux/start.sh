@@ -139,7 +139,7 @@ export PORT=$WEB_PORT
 export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
 
 # Start Web in background
-nohup npx next start -p $WEB_PORT > "$WEB_LOG_FILE" 2>&1 &
+nohup pnpm exec next start -p $WEB_PORT > "$WEB_LOG_FILE" 2>&1 &
 WEB_PID=$!
 echo $WEB_PID > "$WEB_PID_FILE"
 
