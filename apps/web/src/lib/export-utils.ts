@@ -265,7 +265,7 @@ export function markdownToTiptap(markdown: string): any {
 
         // Heading
         const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-        if (headingMatch) {
+        if (headingMatch && headingMatch[1] && headingMatch[2]) {
             content.push({
                 type: 'heading',
                 attrs: { level: headingMatch[1].length },
