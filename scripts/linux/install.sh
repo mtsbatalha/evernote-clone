@@ -151,6 +151,18 @@ cd "$PROJECT_ROOT"
 # Run Prisma migrations
 log_info "Running database migrations..."
 cd "$PROJECT_ROOT"
+
+# Load environment variables from .env
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+    log_info "Loaded environment variables from .env"
+else
+    log_error ".env file not found. Cannot run database migrations."
+    exit 1
+fi
+
 pnpm --filter @evernote-clone/database exec prisma generate
 pnpm --filter @evernote-clone/database exec prisma db push
 log_success "Database setup complete"
