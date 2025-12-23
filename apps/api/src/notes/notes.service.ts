@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SearchService } from '../search/search.service';
-import { Note, SharePermission } from '@prisma/client';
+import { Note, SharePermission } from '@evernote-clone/database';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
 
 @Injectable()

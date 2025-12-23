@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { User } from '@evernote-clone/database';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()

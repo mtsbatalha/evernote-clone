@@ -26,12 +26,6 @@
         "paths": {
             "@/*": [
                 "./*"
-            ],
-            "@evernote-clone/database": [
-                "../../../packages/database/src"
-            ],
-            "@evernote-clone/shared": [
-                "../../../packages/shared/src"
             ]
         }
     },

@@ -4,7 +4,7 @@ import {
     ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Tag } from '@prisma/client';
+import { Tag } from '@evernote-clone/database';
 
 @Injectable()
 export class TagsService {

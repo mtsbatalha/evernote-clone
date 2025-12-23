@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators';
 import { SearchService } from './search.service';
-import { User } from '@prisma/client';
+import { User } from '@evernote-clone/database';
 
 @ApiTags('search')
 @ApiBearerAuth()

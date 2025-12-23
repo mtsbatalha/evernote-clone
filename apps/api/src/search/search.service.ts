@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch, Index } from 'meilisearch';
-import { Note } from '@prisma/client';
+import { Note } from '@evernote-clone/database';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface NoteDocument {

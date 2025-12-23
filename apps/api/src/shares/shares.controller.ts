@@ -12,7 +12,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators';
 import { SharesService } from './shares.service';
-import { User, SharePermission } from '@prisma/client';
+import { User, SharePermission } from '@evernote-clone/database';
 import { IsString, IsEmail, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

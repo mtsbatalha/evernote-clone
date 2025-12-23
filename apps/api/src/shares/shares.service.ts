@@ -6,7 +6,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NoteShare, SharePermission } from '@prisma/client';
+import { NoteShare, SharePermission } from '@evernote-clone/database';
 
 @Injectable()
 export class SharesService {

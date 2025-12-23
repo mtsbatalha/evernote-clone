@@ -14,7 +14,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nes
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators';
 import { StorageService } from './storage.service';
-import { User } from '@prisma/client';
+import { User } from '@evernote-clone/database';
 
 @ApiTags('storage')
 @ApiBearerAuth()

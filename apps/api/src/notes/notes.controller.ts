@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators';
 import { NotesService } from './notes.service';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
-import { User } from '@prisma/client';
+import { User } from '@evernote-clone/database';
 
 @ApiTags('notes')
 @ApiBearerAuth()

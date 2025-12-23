@@ -3,7 +3,7 @@ import {
     ExecutionContext,
     SetMetadata,
 } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { User } from '@evernote-clone/database';
 
 export const CurrentUser = createParamDecorator(
     (data: keyof User | undefined, ctx: ExecutionContext) => {

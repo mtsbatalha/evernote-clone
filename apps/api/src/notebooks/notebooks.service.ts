@@ -5,7 +5,7 @@ import {
     ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Notebook } from '@prisma/client';
+import { Notebook } from '@evernote-clone/database';
 
 @Injectable()
 export class NotebooksService {
