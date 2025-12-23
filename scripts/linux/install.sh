@@ -36,7 +36,16 @@ MISSING_DEPS=0
 check_command "node" || MISSING_DEPS=1
 check_command "npm" || MISSING_DEPS=1
 check_command "docker" || MISSING_DEPS=1
-check_command "docker-compose" || { check_command "docker" && docker compose version &>/dev/null; } || MISSING_DEPS=1
+
+# Check for docker-compose or "docker compose"
+if command -v docker-compose &> /dev/null; then
+    log_success "docker-compose found: $(command -v docker-compose)"
+elif docker compose version &> /dev/null; then
+    log_success "docker compose plugin found"
+else
+    log_error "Neither docker-compose nor 'docker compose' plugin was found."
+    MISSING_DEPS=1
+fi
 
 # Check pnpm
 if ! command -v pnpm &> /dev/null; then
