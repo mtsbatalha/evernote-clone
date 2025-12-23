@@ -83,7 +83,7 @@ export function SearchInNote({ searchQuery, onClose, onQueryChange, showInput = 
         matchesRef.current = newMatches;
 
         // Scroll to first match
-        if (newMatches.length > 0) {
+        if (newMatches.length > 0 && newMatches[0]) {
             setCurrentIndex(0);
             scrollToMatchByRange(newMatches[0].range);
         }
@@ -104,7 +104,8 @@ export function SearchInNote({ searchQuery, onClose, onQueryChange, showInput = 
 
         const nextIndex = (currentIndex + 1) % currentMatches.length;
         setCurrentIndex(nextIndex);
-        scrollToMatchByRange(currentMatches[nextIndex].range);
+        const nextMatch = currentMatches[nextIndex];
+        if (nextMatch) scrollToMatchByRange(nextMatch.range);
     }, [currentIndex, scrollToMatchByRange]);
 
     // Navigate to previous match
@@ -114,7 +115,8 @@ export function SearchInNote({ searchQuery, onClose, onQueryChange, showInput = 
 
         const prevIndex = (currentIndex - 1 + currentMatches.length) % currentMatches.length;
         setCurrentIndex(prevIndex);
-        scrollToMatchByRange(currentMatches[prevIndex].range);
+        const prevMatch = currentMatches[prevIndex];
+        if (prevMatch) scrollToMatchByRange(prevMatch.range);
     }, [currentIndex, scrollToMatchByRange]);
 
     // Handle close
@@ -164,8 +166,8 @@ export function SearchInNote({ searchQuery, onClose, onQueryChange, showInput = 
         const updatedMatches = matchesRef.current.map(match => {
             try {
                 const rects = match.range.getClientRects();
-                if (rects.length > 0) {
-                    const rect = rects[0];
+                const rect = rects[0];
+                if (rects.length > 0 && rect) {
                     return {
                         ...match,
                         top: rect.top - containerRect.top + scrollTop,
