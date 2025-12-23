@@ -251,7 +251,7 @@ export function ShareDialog({ noteId, noteTitle, children }: ShareDialogProps) {
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                                                {share.user.name?.[0]?.toUpperCase() || share.user.email[0].toUpperCase()}
+                                                {share.user.name?.[0]?.toUpperCase() || share.user.email?.[0]?.toUpperCase() || '?'}
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium">{share.user.name || share.user.email}</p>
