@@ -168,6 +168,33 @@ export class NotesService {
         await this.searchService.deleteNote(id);
     }
 
+    async bulkTrash(userId: string, noteIds: string[]): Promise<void> {
+        // Update all notes owned by user to trashed
+        await this.prisma.note.updateMany({
+            where: {
+                id: { in: noteIds },
+                authorId: userId,
+            },
+            data: {
+                isTrashed: true,
+                trashedAt: new Date(),
+            },
+        });
+    }
+
+    async bulkDelete(userId: string, noteIds: string[]): Promise<void> {
+        // Delete all notes owned by user
+        const deleted = await this.prisma.note.deleteMany({
+            where: {
+                id: { in: noteIds },
+                authorId: userId,
+            },
+        });
+
+        // Remove from search index
+        await Promise.all(noteIds.map((id) => this.searchService.deleteNote(id)));
+    }
+
     async getVersions(id: string, userId: string) {
         await this.findById(id, userId); // Check access
 

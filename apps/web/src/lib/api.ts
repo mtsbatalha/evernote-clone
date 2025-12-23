@@ -81,6 +81,20 @@ export const notesApi = {
 
     updateTags: (token: string, noteId: string, tagIds: string[]) =>
         fetchApi<any>(`/notes/${noteId}/tags`, { method: 'PATCH', body: JSON.stringify({ tagIds }), token }),
+
+    bulkTrash: (token: string, noteIds: string[]) =>
+        fetchApi<{ success: boolean; count: number }>('/notes/bulk/trash', {
+            method: 'PATCH',
+            body: JSON.stringify({ noteIds }),
+            token
+        }),
+
+    bulkDelete: (token: string, noteIds: string[]) =>
+        fetchApi<{ success: boolean; count: number }>('/notes/bulk', {
+            method: 'DELETE',
+            body: JSON.stringify({ noteIds }),
+            token
+        }),
 };
 
 // Notebooks API

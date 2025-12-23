@@ -37,22 +37,38 @@ export class NotesController {
         return this.notesService.findAll(user.id, { notebookId, tagId, trashed });
     }
 
-    @Get(':id')
-    @ApiOperation({ summary: 'Get a note by ID' })
-    async findById(@CurrentUser() user: User, @Param('id') id: string) {
-        return this.notesService.findById(id, user.id);
-    }
-
     @Post()
     @ApiOperation({ summary: 'Create a new note' })
     async create(@CurrentUser() user: User, @Body() dto: CreateNoteDto) {
         return this.notesService.create(user.id, dto);
     }
 
+    // IMPORTANT: Static routes MUST come before dynamic :id routes
     @Post('bulk')
     @ApiOperation({ summary: 'Create multiple notes at once (for import)' })
     async bulkCreate(@CurrentUser() user: User, @Body() body: { notes: CreateNoteDto[] }) {
         return this.notesService.bulkCreate(user.id, body.notes);
+    }
+
+    @Patch('bulk/trash')
+    @ApiOperation({ summary: 'Move multiple notes to trash' })
+    async bulkTrash(@CurrentUser() user: User, @Body() body: { noteIds: string[] }) {
+        await this.notesService.bulkTrash(user.id, body.noteIds);
+        return { success: true, count: body.noteIds.length };
+    }
+
+    @Delete('bulk')
+    @ApiOperation({ summary: 'Delete multiple notes permanently' })
+    async bulkDelete(@CurrentUser() user: User, @Body() body: { noteIds: string[] }) {
+        await this.notesService.bulkDelete(user.id, body.noteIds);
+        return { success: true, count: body.noteIds.length };
+    }
+
+    // Dynamic :id routes come after static routes
+    @Get(':id')
+    @ApiOperation({ summary: 'Get a note by ID' })
+    async findById(@CurrentUser() user: User, @Param('id') id: string) {
+        return this.notesService.findById(id, user.id);
     }
 
     @Patch(':id')

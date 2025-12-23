@@ -10,6 +10,10 @@ import TaskItem from '@tiptap/extension-task-item';
 import Highlight from '@tiptap/extension-highlight';
 import Underline from '@tiptap/extension-underline';
 import Typography from '@tiptap/extension-typography';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 import { ResizableImage } from './extensions/resizable-image';
 import { CodeBlockWithLanguage } from './extensions/code-block-language';
 import { LinkPreview } from './extensions/link-preview';
@@ -95,9 +99,6 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         shouldRerenderOnTransaction: false, // Prevent rerenders on every transaction
         extensions: [
             StarterKit.configure({
-                history: {
-                    depth: 100,
-                },
                 codeBlock: false, // Using custom CodeBlockWithLanguage instead
             }),
             Placeholder.configure({
@@ -122,6 +123,13 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             }),
             Underline,
             Typography,
+            // Table extensions for imported content
+            Table.configure({
+                resizable: true,
+            }),
+            TableRow,
+            TableCell,
+            TableHeader,
         ],
         editorProps: {
             attributes: {

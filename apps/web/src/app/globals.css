@@ -173,6 +173,33 @@
   @apply my-8 border-border;
 }
 
+/* Tables */
+.tiptap table {
+  @apply border-collapse w-full my-4;
+}
+
+.tiptap table th,
+.tiptap table td {
+  @apply border border-border px-3 py-2 text-left align-top;
+}
+
+.tiptap table th {
+  @apply bg-muted font-semibold;
+}
+
+.tiptap table tr:hover td {
+  @apply bg-muted/30;
+}
+
+/* Resizable tables */
+.tiptap .tableWrapper {
+  @apply overflow-x-auto my-4;
+}
+
+.tiptap .resize-cursor {
+  cursor: col-resize;
+}
+
 /* Collaboration cursor */
 .collaboration-cursor__caret {
   @apply relative ml-[-1px] mr-[-1px] pointer-events-none break-normal border-l-2;

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useNotesStore } from '@/store/notes-store';
 import { notebooksApi, tagsApi } from '@/lib/api';
 import { AccountSettingsDialog } from '@/components/dialogs/account-settings-dialog';
+import { DeleteNotebookDialog } from '@/components/dialogs/delete-notebook-dialog';
 import {
     BookOpen,
     ChevronDown,
@@ -154,23 +155,35 @@ export function Sidebar() {
                             </div>
                         )}
                         {notebooks.map((notebook) => (
-                            <button
+                            <div
                                 key={notebook.id}
-                                onClick={() => selectNotebook(notebook.id)}
                                 className={cn(
-                                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group',
                                     selectedNotebookId === notebook.id
                                         ? 'bg-primary/10 text-primary'
                                         : 'hover:bg-accent'
                                 )}
                             >
-                                <div
-                                    className="w-3 h-3 rounded"
-                                    style={{ backgroundColor: notebook.color }}
-                                />
-                                <span className="flex-1 text-left truncate">{notebook.name}</span>
-                                <span className="text-xs text-muted-foreground">{notebook._count?.notes || 0}</span>
-                            </button>
+                                <button
+                                    onClick={() => selectNotebook(notebook.id)}
+                                    className="flex items-center gap-3 flex-1 min-w-0"
+                                >
+                                    <div
+                                        className="w-3 h-3 rounded shrink-0"
+                                        style={{ backgroundColor: notebook.color }}
+                                    />
+                                    <span className="flex-1 text-left truncate">{notebook.name}</span>
+                                    <span className="text-xs text-muted-foreground">{notebook._count?.notes || 0}</span>
+                                </button>
+                                <DeleteNotebookDialog notebook={notebook}>
+                                    <button
+                                        className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                                        title="Deletar notebook"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </DeleteNotebookDialog>
+                            </div>
                         ))}
                     </div>
                 )}

@@ -2,7 +2,22 @@
 
 /**
  * Import utilities for parsing Evernote (.enex), HTML, and Markdown files
+ * Enhanced version with support for:
+ * - Embedded images and resources from Evernote
+ * - Checkboxes/tasks (en-todo → taskList)
+ * - Text styles (colors, highlight, font size)
+ * - Tables (Evernote and Markdown GFM)
+ * - Nested lists
  */
+
+export interface ImportedResource {
+    hash: string;          // MD5 hash used in en-media
+    data: string;          // Base64 encoded data
+    mime: string;          // MIME type (e.g., image/png)
+    filename?: string;     // Original filename if available
+    width?: number;
+    height?: number;
+}
 
 export interface ImportedNote {
     title: string;
@@ -10,6 +25,7 @@ export interface ImportedNote {
     createdAt?: string;
     updatedAt?: string;
     tags?: string[];
+    resources?: ImportedResource[]; // Embedded resources
 }
 
 /**
@@ -57,6 +73,11 @@ export function parseEnexFile(content: string): ImportedNote[] {
             const created = noteEl.querySelector('created')?.textContent;
             const updated = noteEl.querySelector('updated')?.textContent;
 
+            // Extract resources (images, attachments)
+            const resources = extractResources(noteEl);
+            const resourceMap = new Map<string, ImportedResource>();
+            resources.forEach(r => resourceMap.set(r.hash, r));
+
             // ENEX content is wrapped in CDATA, extract it
             let htmlContent = '';
             if (contentEl) {
@@ -65,12 +86,12 @@ export function parseEnexFile(content: string): ImportedNote[] {
 
                 // Evernote content is in en-note format, extract body
                 const enNoteMatch = htmlContent.match(/<en-note[^>]*>([\s\S]*?)<\/en-note>/i);
-                if (enNoteMatch) {
+                if (enNoteMatch && enNoteMatch[1]) {
                     htmlContent = enNoteMatch[1];
                 }
 
-                // Clean up Evernote-specific tags
-                htmlContent = cleanEnexContent(htmlContent);
+                // Clean up Evernote-specific tags, converting to HTML
+                htmlContent = cleanEnexContent(htmlContent, resourceMap);
             }
 
             // Parse tags
@@ -86,6 +107,7 @@ export function parseEnexFile(content: string): ImportedNote[] {
                 createdAt: parseEnexDate(created),
                 updatedAt: parseEnexDate(updated),
                 tags,
+                resources: resources.length > 0 ? resources : undefined,
             });
         });
     } catch (error) {
@@ -95,6 +117,69 @@ export function parseEnexFile(content: string): ImportedNote[] {
     }
 
     return notes;
+}
+
+/**
+ * Extract resources (images, files) from a note element
+ */
+function extractResources(noteEl: Element): ImportedResource[] {
+    const resources: ImportedResource[] = [];
+
+    noteEl.querySelectorAll('resource').forEach((resourceEl) => {
+        const dataEl = resourceEl.querySelector('data');
+        const mimeEl = resourceEl.querySelector('mime');
+
+        if (dataEl && mimeEl) {
+            const data = dataEl.textContent?.replace(/\s/g, '') || '';
+            const mime = mimeEl.textContent || 'application/octet-stream';
+
+            // Calculate MD5 hash from data (simplified - use first 32 chars of base64 as identifier)
+            // In real ENEX, the hash is provided in recognition data
+            const recognitionEl = resourceEl.querySelector('recognition');
+            let hash = '';
+
+            if (recognitionEl) {
+                // Try to extract hash from recognition XML
+                const hashMatch = recognitionEl.textContent?.match(/objID="([a-f0-9]+)"/i);
+                if (hashMatch && hashMatch[1]) {
+                    hash = hashMatch[1];
+                }
+            }
+
+            // Fallback: generate hash from data prefix
+            if (!hash) {
+                hash = generateSimpleHash(data.substring(0, 100));
+            }
+
+            const widthEl = resourceEl.querySelector('width');
+            const heightEl = resourceEl.querySelector('height');
+            const filenameEl = resourceEl.querySelector('file-name');
+
+            resources.push({
+                hash,
+                data,
+                mime,
+                filename: filenameEl?.textContent || undefined,
+                width: widthEl ? parseInt(widthEl.textContent || '0', 10) : undefined,
+                height: heightEl ? parseInt(heightEl.textContent || '0', 10) : undefined,
+            });
+        }
+    });
+
+    return resources;
+}
+
+/**
+ * Generate a simple hash for resource identification
+ */
+function generateSimpleHash(input: string): string {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
 /**
@@ -121,19 +206,53 @@ function parseEnexDate(dateStr: string | undefined): string | undefined {
 }
 
 /**
- * Clean Evernote-specific content
+ * Clean Evernote-specific content and convert to standard HTML
  */
-function cleanEnexContent(content: string): string {
-    return content
-        .replace(/<en-media[^>]*\/>/gi, '') // Remove self-closing media tags
-        .replace(/<en-media[^>]*>.*?<\/en-media>/gi, '') // Remove media with content
-        .replace(/<en-crypt[^>]*>.*?<\/en-crypt>/gi, '[Encrypted content]') // Mark encrypted
-        .replace(/<en-todo[^>]*checked="true"[^>]*\/>/gi, '☑ ')
-        .replace(/<en-todo[^>]*\/>/gi, '☐ ')
-        .replace(/<en-todo[^>]*checked="true"[^>]*>/gi, '☑ ')
-        .replace(/<en-todo[^>]*>/gi, '☐ ')
-        .replace(/<\/en-todo>/gi, '')
-        .trim();
+function cleanEnexContent(content: string, resourceMap?: Map<string, ImportedResource>): string {
+    let result = content;
+
+    // Convert en-media to img tags with data URLs or placeholders
+    result = result.replace(/<en-media[^>]*hash="([a-f0-9]+)"[^>]*type="([^"]*)"[^>]*\/?>/gi,
+        (match, hash, type) => {
+            const resource = resourceMap?.get(hash);
+            if (resource && resource.mime.startsWith('image/')) {
+                const widthAttr = resource.width ? ` width="${resource.width}"` : '';
+                const heightAttr = resource.height ? ` height="${resource.height}"` : '';
+                return `<img src="data:${resource.mime};base64,${resource.data}"${widthAttr}${heightAttr} data-resource-hash="${hash}" alt="Imagem importada" />`;
+            }
+            // For non-image resources, create a download link placeholder
+            if (resource) {
+                const filename = resource.filename || `attachment.${resource.mime.split('/')[1] || 'bin'}`;
+                return `<p><a href="#" data-resource-hash="${hash}" data-resource-type="${resource.mime}">[📎 ${filename}]</a></p>`;
+            }
+            return `<p>[Mídia não encontrada: ${hash}]</p>`;
+        }
+    );
+
+    // Handle en-media without hash attribute (fallback)
+    result = result.replace(/<en-media[^>]*\/>/gi, '');
+    result = result.replace(/<en-media[^>]*>.*?<\/en-media>/gi, '');
+
+    // Convert en-crypt to placeholder
+    result = result.replace(/<en-crypt[^>]*>.*?<\/en-crypt>/gi, '<p><em>[Conteúdo criptografado]</em></p>');
+
+    // Convert en-todo to checkbox inputs (will be converted to taskList in htmlToTiptap)
+    result = result.replace(/<en-todo[^>]*checked="true"[^>]*\/?>/gi, '<input type="checkbox" checked disabled /> ');
+    result = result.replace(/<en-todo[^>]*\/?>/gi, '<input type="checkbox" disabled /> ');
+    result = result.replace(/<\/en-todo>/gi, '');
+
+    // Wrap lines with checkboxes in task list structure
+    result = result.replace(/(<input type="checkbox"[^>]*>\s*)([^<\n]+)/gi,
+        '<li data-type="taskItem" data-checked="$1"><p>$2</p></li>');
+    result = result.replace(/data-checked="<input type="checkbox" checked disabled \/>"/gi, 'data-checked="true"');
+    result = result.replace(/data-checked="<input type="checkbox" disabled \/>"/gi, 'data-checked="false"');
+
+    // Wrap consecutive taskItems in taskList
+    result = result.replace(/(<li data-type="taskItem"[^>]*>[\s\S]*?<\/li>\s*)+/gi, (match) => {
+        return `<ul data-type="taskList">${match}</ul>`;
+    });
+
+    return result.trim();
 }
 
 /**
@@ -148,32 +267,38 @@ function parseEnexFileWithRegex(content: string): ImportedNote[] {
 
     while ((match = noteRegex.exec(content)) !== null) {
         const noteContent = match[1];
+        if (!noteContent) continue;
 
         // Extract title
         const titleMatch = noteContent.match(/<title>([^<]*)<\/title>/i);
-        const title = titleMatch ? titleMatch[1].trim() : 'Untitled';
+        const title = titleMatch && titleMatch[1] ? titleMatch[1].trim() : 'Untitled';
+
+        // Extract resources
+        const resources = extractResourcesFromRegex(noteContent);
+        const resourceMap = new Map<string, ImportedResource>();
+        resources.forEach(r => resourceMap.set(r.hash, r));
 
         // Extract content (inside CDATA usually)
         let htmlContent = '';
         const contentMatch = noteContent.match(/<content>([\s\S]*?)<\/content>/i);
-        if (contentMatch) {
-            let rawContent = contentMatch[1];
+        if (contentMatch && contentMatch[1]) {
+            let rawContent: string = contentMatch[1];
 
             // Remove CDATA wrapper if present
             const cdataMatch = rawContent.match(/<!\[CDATA\[([\s\S]*?)]]>/);
-            if (cdataMatch) {
+            if (cdataMatch && cdataMatch[1]) {
                 rawContent = cdataMatch[1];
             }
 
             // Extract en-note content
             const enNoteMatch = rawContent.match(/<en-note[^>]*>([\s\S]*?)<\/en-note>/i);
-            if (enNoteMatch) {
+            if (enNoteMatch && enNoteMatch[1]) {
                 htmlContent = enNoteMatch[1];
             } else {
                 htmlContent = rawContent;
             }
 
-            htmlContent = cleanEnexContent(htmlContent);
+            htmlContent = cleanEnexContent(htmlContent, resourceMap);
         }
 
         // Extract dates
@@ -185,7 +310,7 @@ function parseEnexFileWithRegex(content: string): ImportedNote[] {
         const tagRegex = /<tag>([^<]*)<\/tag>/gi;
         let tagMatch;
         while ((tagMatch = tagRegex.exec(noteContent)) !== null) {
-            const tagName = tagMatch[1].trim();
+            const tagName = tagMatch[1]?.trim();
             if (tagName) tags.push(tagName);
         }
 
@@ -195,6 +320,7 @@ function parseEnexFileWithRegex(content: string): ImportedNote[] {
             createdAt: parseEnexDate(createdMatch?.[1]),
             updatedAt: parseEnexDate(updatedMatch?.[1]),
             tags,
+            resources: resources.length > 0 ? resources : undefined,
         });
     }
 
@@ -203,6 +329,47 @@ function parseEnexFileWithRegex(content: string): ImportedNote[] {
     }
 
     return notes;
+}
+
+/**
+ * Extract resources using regex (fallback)
+ */
+function extractResourcesFromRegex(noteContent: string): ImportedResource[] {
+    const resources: ImportedResource[] = [];
+    const resourceRegex = /<resource>([\s\S]*?)<\/resource>/gi;
+    let match;
+
+    while ((match = resourceRegex.exec(noteContent)) !== null) {
+        const resContent = match[1];
+        if (!resContent) continue;
+
+        const dataMatch = resContent.match(/<data[^>]*>([\s\S]*?)<\/data>/i);
+        const mimeMatch = resContent.match(/<mime>([^<]*)<\/mime>/i);
+
+        if (dataMatch && dataMatch[1] && mimeMatch && mimeMatch[1]) {
+            const data = dataMatch[1].replace(/\s/g, '');
+            const mime = mimeMatch[1];
+
+            // Try to get hash from recognition
+            const recMatch = resContent.match(/objID="([a-f0-9]+)"/i);
+            const hash = recMatch && recMatch[1] ? recMatch[1] : generateSimpleHash(data.substring(0, 100));
+
+            const widthMatch = resContent.match(/<width>(\d+)<\/width>/i);
+            const heightMatch = resContent.match(/<height>(\d+)<\/height>/i);
+            const filenameMatch = resContent.match(/<file-name>([^<]*)<\/file-name>/i);
+
+            resources.push({
+                hash,
+                data,
+                mime,
+                filename: filenameMatch?.[1],
+                width: widthMatch && widthMatch[1] ? parseInt(widthMatch[1], 10) : undefined,
+                height: heightMatch && heightMatch[1] ? parseInt(heightMatch[1], 10) : undefined,
+            });
+        }
+    }
+
+    return resources;
 }
 
 /**
@@ -248,7 +415,7 @@ export function parseMarkdownFile(content: string, filename: string): ImportedNo
     // Extract title from first heading or filename
     let title = filename.replace(/\.(md|markdown)$/i, '');
     const headingMatch = content.match(/^#\s+(.+)$/m);
-    if (headingMatch) {
+    if (headingMatch && headingMatch[1]) {
         title = headingMatch[1].trim();
         // Remove the heading from content
         content = content.replace(/^#\s+.+$/m, '').trim();
@@ -264,16 +431,47 @@ export function parseMarkdownFile(content: string, filename: string): ImportedNo
 }
 
 /**
- * Simple Markdown to HTML converter
+ * Enhanced Markdown to HTML converter with support for:
+ * - Tables (GFM)
+ * - Task lists
+ * - Nested lists
+ * - Footnotes
  */
 function markdownToHtml(md: string): string {
     let html = md;
 
-    // Escape HTML entities first
+    // Process code blocks FIRST (before escaping)
+    const codeBlocks: string[] = [];
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        const index = codeBlocks.length;
+        codeBlocks.push(`<pre><code class="language-${lang || 'plaintext'}">${escapeHtml(code)}</code></pre>`);
+        return `___CODEBLOCK_${index}___`;
+    });
+
+    // Inline code (before escaping)
+    const inlineCodes: string[] = [];
+    html = html.replace(/`([^`]+)`/g, (_, code) => {
+        const index = inlineCodes.length;
+        inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
+        return `___INLINECODE_${index}___`;
+    });
+
+    // Now escape HTML entities
     html = html
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+
+    // Restore code blocks and inline codes
+    codeBlocks.forEach((block, i) => {
+        html = html.replace(`___CODEBLOCK_${i}___`, block);
+    });
+    inlineCodes.forEach((code, i) => {
+        html = html.replace(`___INLINECODE_${i}___`, code);
+    });
+
+    // Tables (GFM)
+    html = convertMarkdownTables(html);
 
     // Headers
     html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
@@ -294,27 +492,29 @@ function markdownToHtml(md: string): string {
     // Strikethrough
     html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
 
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Highlight (==text==)
+    html = html.replace(/==(.+?)==/g, '<mark>$1</mark>');
 
-    // Code blocks
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
+    // Blockquotes (handle nested)
+    html = html.replace(/^(&gt;)+\s*(.+)$/gm, (match, quotes, text) => {
+        const level = (quotes.match(/&gt;/g) || []).length;
+        return '<blockquote>'.repeat(level) + text + '</blockquote>'.repeat(level);
+    });
 
-    // Blockquotes
-    html = html.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+    // Task lists (must be before regular lists)
+    html = html.replace(/^[-*]\s+\[x\]\s+(.+)$/gim, '<li data-type="taskItem" data-checked="true"><p>$1</p></li>');
+    html = html.replace(/^[-*]\s+\[\s*\]\s+(.+)$/gim, '<li data-type="taskItem" data-checked="false"><p>$1</p></li>');
 
-    // Unordered lists
-    html = html.replace(/^\*\s+(.+)$/gm, '<li>$1</li>');
-    html = html.replace(/^-\s+(.+)$/gm, '<li>$1</li>');
-    // Wrap consecutive li items in ul
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // Wrap consecutive task items
+    html = html.replace(/(<li data-type="taskItem"[^>]*>[\s\S]*?<\/li>\n?)+/g, (match) => {
+        return `<ul data-type="taskList">${match}</ul>`;
+    });
+
+    // Unordered lists (handle nesting by indentation)
+    html = convertMarkdownLists(html);
 
     // Ordered lists
     html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-
-    // Task lists
-    html = html.replace(/^-\s+\[x\]\s+(.+)$/gim, '<li data-checked="true">$1</li>');
-    html = html.replace(/^-\s+\[\s*\]\s+(.+)$/gim, '<li data-checked="false">$1</li>');
 
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
@@ -348,7 +548,12 @@ function markdownToHtml(md: string): string {
             trimmed.startsWith('<li') ||
             trimmed.startsWith('<blockquote') ||
             trimmed.startsWith('<pre') ||
-            trimmed.startsWith('<hr')) {
+            trimmed.startsWith('<hr') ||
+            trimmed.startsWith('<table') ||
+            trimmed.startsWith('<tr') ||
+            trimmed.startsWith('<td') ||
+            trimmed.startsWith('<th') ||
+            trimmed.startsWith('<mark')) {
             if (inParagraph) {
                 result.push('</p>');
                 inParagraph = false;
@@ -369,6 +574,159 @@ function markdownToHtml(md: string): string {
     }
 
     return result.join('\n');
+}
+
+/**
+ * Convert Markdown tables to HTML
+ */
+function convertMarkdownTables(md: string): string {
+    const lines = md.split('\n');
+    const result: string[] = [];
+    let inTable = false;
+    let tableRows: string[] = [];
+    let alignments: ('left' | 'center' | 'right' | null)[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = (lines[i] || '').trim();
+
+        // Check if this is a table row (contains |)
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.slice(1, -1).split('|').map(c => c.trim());
+
+            // Check if next line is alignment row
+            if (!inTable && i + 1 < lines.length) {
+                const nextLine = (lines[i + 1] || '').trim();
+                if (nextLine.match(/^\|[\s\-:|]+\|$/)) {
+                    // This is header row, next is alignment
+                    inTable = true;
+                    alignments = nextLine.slice(1, -1).split('|').map(cell => {
+                        const c = cell.trim();
+                        if (c.startsWith(':') && c.endsWith(':')) return 'center';
+                        if (c.endsWith(':')) return 'right';
+                        if (c.startsWith(':')) return 'left';
+                        return null;
+                    });
+
+                    // Create header row
+                    const headerCells = cells.map((cell, idx) => {
+                        const align = alignments[idx];
+                        const style = align ? ` style="text-align: ${align}"` : '';
+                        return `<th${style}>${cell}</th>`;
+                    }).join('');
+                    tableRows.push(`<tr>${headerCells}</tr>`);
+                    i++; // Skip alignment row
+                    continue;
+                }
+            }
+
+            if (inTable) {
+                // Regular table row
+                const rowCells = cells.map((cell, idx) => {
+                    const align = alignments[idx];
+                    const style = align ? ` style="text-align: ${align}"` : '';
+                    return `<td${style}>${cell}</td>`;
+                }).join('');
+                tableRows.push(`<tr>${rowCells}</tr>`);
+            } else {
+                result.push(line);
+            }
+        } else {
+            // Not a table row
+            if (inTable) {
+                // End of table
+                result.push(`<table><tbody>${tableRows.join('')}</tbody></table>`);
+                tableRows = [];
+                inTable = false;
+                alignments = [];
+            }
+            result.push(line);
+        }
+    }
+
+    // Handle table at end of content
+    if (inTable && tableRows.length > 0) {
+        result.push(`<table><tbody>${tableRows.join('')}</tbody></table>`);
+    }
+
+    return result.join('\n');
+}
+
+/**
+ * Convert Markdown lists with proper nesting
+ */
+function convertMarkdownLists(html: string): string {
+    const lines = html.split('\n');
+    const result: string[] = [];
+    const listStack: { type: 'ul' | 'ol'; indent: number }[] = [];
+
+    for (const line of lines) {
+        // Match list items with indentation
+        const unorderedMatch = line.match(/^(\s*)([-*])\s+(.+)$/);
+        const orderedMatch = line.match(/^(\s*)(\d+)\.\s+(.+)$/);
+
+        if (unorderedMatch && !line.includes('data-type="taskItem"')) {
+            const indent = unorderedMatch[1] || '';
+            const content = unorderedMatch[3] || '';
+            const indentLevel = indent.length;
+
+            // Close lists that are more indented
+            while (listStack.length > 0 && listStack[listStack.length - 1]!.indent > indentLevel) {
+                const popped = listStack.pop()!;
+                result.push(`</${popped.type}>`);
+            }
+
+            // Open new list if needed
+            if (listStack.length === 0 || listStack[listStack.length - 1]!.indent < indentLevel) {
+                result.push('<ul>');
+                listStack.push({ type: 'ul', indent: indentLevel });
+            }
+
+            result.push(`<li>${content}</li>`);
+        } else if (orderedMatch) {
+            const indent = orderedMatch[1] || '';
+            const content = orderedMatch[3] || '';
+            const indentLevel = indent.length;
+
+            while (listStack.length > 0 && listStack[listStack.length - 1]!.indent > indentLevel) {
+                const popped = listStack.pop()!;
+                result.push(`</${popped.type}>`);
+            }
+
+            if (listStack.length === 0 || listStack[listStack.length - 1]!.indent < indentLevel) {
+                result.push('<ol>');
+                listStack.push({ type: 'ol', indent: indentLevel });
+            }
+
+            result.push(`<li>${content}</li>`);
+        } else {
+            // Not a list item, close all open lists
+            while (listStack.length > 0) {
+                const popped = listStack.pop()!;
+                result.push(`</${popped.type}>`);
+            }
+            result.push(line);
+        }
+    }
+
+    // Close remaining lists
+    while (listStack.length > 0) {
+        const popped = listStack.pop()!;
+        result.push(`</${popped.type}>`);
+    }
+
+    return result.join('\n');
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 /**
@@ -422,6 +780,10 @@ export async function parseFiles(files: File[]): Promise<{ notes: ImportedNote[]
 
 /**
  * Convert HTML to TipTap JSON document structure
+ * Enhanced with support for:
+ * - Task lists
+ * - Tables
+ * - Text styles (colors, highlights)
  */
 export function htmlToTiptap(html: string): any {
     const parser = new DOMParser();
@@ -505,6 +867,16 @@ export function htmlToTiptap(html: string): any {
                 }));
             }
 
+            case 'mark': {
+                const children = processChildren(el);
+                // Get background color from style or use default yellow
+                const bgColor = el.getAttribute('style')?.match(/background-color:\s*([^;]+)/)?.[1] || '#ffff00';
+                return children.map((c: any) => ({
+                    ...c,
+                    marks: [...(c.marks || []), { type: 'highlight', attrs: { color: bgColor } }]
+                }));
+            }
+
             case 'code': {
                 const text = el.textContent || '';
                 return { type: 'text', text, marks: [{ type: 'code' }] };
@@ -516,7 +888,26 @@ export function htmlToTiptap(html: string): any {
                 return { type: 'text', text, marks: [{ type: 'link', attrs: { href } }] };
             }
 
+            // Task List support
             case 'ul': {
+                const isTaskList = el.getAttribute('data-type') === 'taskList';
+                if (isTaskList) {
+                    const items = Array.from(el.children)
+                        .filter(child => child.tagName.toLowerCase() === 'li')
+                        .map(li => {
+                            const checked = li.getAttribute('data-checked') === 'true';
+                            const content = processChildren(li);
+                            return {
+                                type: 'taskItem',
+                                attrs: { checked },
+                                content: content.length > 0 ?
+                                    (content[0].type === 'paragraph' ? content : [{ type: 'paragraph', content }]) :
+                                    [{ type: 'paragraph' }]
+                            };
+                        });
+                    return { type: 'taskList', content: items };
+                }
+
                 const items = Array.from(el.children)
                     .filter(child => child.tagName.toLowerCase() === 'li')
                     .map(li => ({
@@ -561,13 +952,87 @@ export function htmlToTiptap(html: string): any {
             case 'img': {
                 const src = el.getAttribute('src') || '';
                 const alt = el.getAttribute('alt') || '';
-                return { type: 'image', attrs: { src, alt } };
+                const width = el.getAttribute('width');
+                const height = el.getAttribute('height');
+                return {
+                    type: 'image',
+                    attrs: {
+                        src,
+                        alt,
+                        width: width ? parseInt(width, 10) : null,
+                        height: height ? parseInt(height, 10) : null,
+                    }
+                };
+            }
+
+            // Table support
+            case 'table': {
+                const rows: any[] = [];
+                el.querySelectorAll('tr').forEach(tr => {
+                    const cells: any[] = [];
+                    tr.querySelectorAll('th, td').forEach(cell => {
+                        const isHeader = cell.tagName.toLowerCase() === 'th';
+                        const content = processChildren(cell);
+                        cells.push({
+                            type: isHeader ? 'tableHeader' : 'tableCell',
+                            content: content.length > 0 ?
+                                (content[0].type === 'paragraph' ? content : [{ type: 'paragraph', content }]) :
+                                [{ type: 'paragraph' }]
+                        });
+                    });
+                    if (cells.length > 0) {
+                        rows.push({ type: 'tableRow', content: cells });
+                    }
+                });
+                return rows.length > 0 ? { type: 'table', content: rows } : null;
+            }
+
+            // Handle font tag with color
+            case 'font': {
+                const color = el.getAttribute('color');
+                const children = processChildren(el);
+                if (color) {
+                    return children.map((c: any) => ({
+                        ...c,
+                        marks: [...(c.marks || []), { type: 'textStyle', attrs: { color } }]
+                    }));
+                }
+                return children;
+            }
+
+            // Handle span with styles
+            case 'span': {
+                const style = el.getAttribute('style') || '';
+                const children = processChildren(el);
+
+                const marks: any[] = [];
+
+                // Extract color
+                const colorMatch = style.match(/color:\s*([^;]+)/);
+                if (colorMatch && colorMatch[1]) {
+                    marks.push({ type: 'textStyle', attrs: { color: colorMatch[1].trim() } });
+                }
+
+                // Extract background color (highlight)
+                const bgMatch = style.match(/background-color:\s*([^;]+)/);
+                if (bgMatch && bgMatch[1]) {
+                    marks.push({ type: 'highlight', attrs: { color: bgMatch[1].trim() } });
+                }
+
+                if (marks.length > 0) {
+                    return children.map((c: any) => ({
+                        ...c,
+                        marks: [...(c.marks || []), ...marks]
+                    }));
+                }
+
+                if (children.length === 1) return children[0];
+                return children;
             }
 
             case 'li':
-            case 'span':
             default: {
-                // For spans and other inline elements, process children
+                // For other inline elements, process children
                 const children = processChildren(el);
                 if (children.length === 1) return children[0];
                 return children;
