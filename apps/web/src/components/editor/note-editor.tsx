@@ -841,17 +841,30 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                     isFullWidth ? 'max-w-none px-12' : 'max-w-4xl'
                 )}>
                     {/* Title */}
-                    <input
-                        type="text"
+                    <textarea
                         value={title}
-                        onChange={(e) => handleTitleChange(e.target.value)}
+                        onChange={(e) => {
+                            handleTitleChange(e.target.value);
+                            // Auto-resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onInput={(e) => {
+                            // Auto-resize on input
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = target.scrollHeight + 'px';
+                        }}
                         placeholder="Sem título"
                         disabled={isLocked}
+                        rows={1}
                         className={cn(
-                            'w-full font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6',
-                            isSmallText ? 'text-2xl' : 'text-4xl',
+                            'w-full font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50 mb-6 resize-none overflow-hidden',
+                            // Dynamic text size based on title length
+                            title.length > 60 ? 'text-xl' : title.length > 40 ? 'text-2xl' : isSmallText ? 'text-2xl' : 'text-4xl',
                             isLocked && 'cursor-not-allowed opacity-70'
                         )}
+                        style={{ lineHeight: '1.2' }}
                     />
 
                     {/* Slash Command Menu */}
