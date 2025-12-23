@@ -285,8 +285,8 @@ export function markdownToTiptap(markdown: string): any {
         // Bullet list item
         if (line.match(/^[-*+]\s+/)) {
             const items: any[] = [];
-            while (i < lines.length && lines[i].match(/^[-*+]\s+/)) {
-                const text = lines[i].replace(/^[-*+]\s+/, '');
+            while (i < lines.length && lines[i]?.match(/^[-*+]\s+/)) {
+                const text = lines[i]!.replace(/^[-*+]\s+/, '');
                 items.push({
                     type: 'listItem',
                     content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
@@ -300,9 +300,10 @@ export function markdownToTiptap(markdown: string): any {
         // Task list item
         if (line.match(/^[-*+]\s+\[[ x]\]\s+/i)) {
             const items: any[] = [];
-            while (i < lines.length && lines[i].match(/^[-*+]\s+\[[ x]\]\s+/i)) {
-                const checked = lines[i].includes('[x]') || lines[i].includes('[X]');
-                const text = lines[i].replace(/^[-*+]\s+\[[ x]\]\s+/i, '');
+            while (i < lines.length && lines[i]?.match(/^[-*+]\s+\[[ x]\]\s+/i)) {
+                const currentLine = lines[i]!;
+                const checked = currentLine.includes('[x]') || currentLine.includes('[X]');
+                const text = currentLine.replace(/^[-*+]\s+\[[ x]\]\s+/i, '');
                 items.push({
                     type: 'taskItem',
                     attrs: { checked },
@@ -317,8 +318,8 @@ export function markdownToTiptap(markdown: string): any {
         // Numbered list item
         if (line.match(/^\d+\.\s+/)) {
             const items: any[] = [];
-            while (i < lines.length && lines[i].match(/^\d+\.\s+/)) {
-                const text = lines[i].replace(/^\d+\.\s+/, '');
+            while (i < lines.length && lines[i]?.match(/^\d+\.\s+/)) {
+                const text = lines[i]!.replace(/^\d+\.\s+/, '');
                 items.push({
                     type: 'listItem',
                     content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
@@ -332,8 +333,8 @@ export function markdownToTiptap(markdown: string): any {
         // Blockquote
         if (line.startsWith('> ')) {
             const quoteLines: string[] = [];
-            while (i < lines.length && lines[i].startsWith('> ')) {
-                quoteLines.push(lines[i].substring(2));
+            while (i < lines.length && lines[i]?.startsWith('> ')) {
+                quoteLines.push(lines[i]!.substring(2));
                 i++;
             }
             content.push({
@@ -348,8 +349,8 @@ export function markdownToTiptap(markdown: string): any {
             const lang = line.substring(3).trim();
             const codeLines: string[] = [];
             i++;
-            while (i < lines.length && !lines[i].startsWith('```')) {
-                codeLines.push(lines[i]);
+            while (i < lines.length && !lines[i]?.startsWith('```')) {
+                codeLines.push(lines[i] || '');
                 i++;
             }
             content.push({
