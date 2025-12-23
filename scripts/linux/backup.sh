@@ -75,23 +75,22 @@ fi
 backup_database() {
     log_info "Backing up PostgreSQL database..."
     
-    DB_BACKUP_FILE="$BACKUP_DIR/db_${DB_NAME}_${TIMESTAMP}.sql"
+    LAST_DB_BACKUP="$BACKUP_DIR/db_${DB_NAME}_${TIMESTAMP}.sql"
     
     # Check if running in Docker
     if docker ps --format '{{.Names}}' | grep -q "evernote-postgres"; then
         log_info "Using Docker PostgreSQL..."
-        docker exec evernote-postgres pg_dump -U "$DB_USER" "$DB_NAME" > "$DB_BACKUP_FILE"
+        docker exec evernote-postgres pg_dump -U "$DB_USER" "$DB_NAME" > "$LAST_DB_BACKUP"
     else
         # Direct connection
-        PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME" > "$DB_BACKUP_FILE"
+        PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME" > "$LAST_DB_BACKUP"
     fi
     
     # Compress
-    gzip -f "$DB_BACKUP_FILE"
-    DB_BACKUP_FILE="${DB_BACKUP_FILE}.gz"
+    gzip -f "$LAST_DB_BACKUP"
+    LAST_DB_BACKUP="${LAST_DB_BACKUP}.gz"
     
-    log_success "Database backup: $DB_BACKUP_FILE ($(du -h "$DB_BACKUP_FILE" | cut -f1))"
-    echo "$DB_BACKUP_FILE"
+    log_success "Database backup: $LAST_DB_BACKUP ($(du -h "$LAST_DB_BACKUP" | cut -f1))"
 }
 
 # ==============================================================================
@@ -101,7 +100,7 @@ backup_database() {
 backup_files() {
     log_info "Backing up files..."
     
-    FILES_BACKUP="$BACKUP_DIR/files_${TIMESTAMP}.tar.gz"
+    LAST_FILES_BACKUP="$BACKUP_DIR/files_${TIMESTAMP}.tar.gz"
     
     cd "$PROJECT_ROOT"
     
@@ -113,13 +112,12 @@ backup_files() {
     [ -f ".env" ] && DIRS_TO_BACKUP="$DIRS_TO_BACKUP .env"
     
     if [ -n "$DIRS_TO_BACKUP" ]; then
-        tar -czf "$FILES_BACKUP" $DIRS_TO_BACKUP 2>/dev/null || true
-        log_success "Files backup: $FILES_BACKUP ($(du -h "$FILES_BACKUP" | cut -f1))"
+        tar -czf "$LAST_FILES_BACKUP" $DIRS_TO_BACKUP 2>/dev/null || true
+        log_success "Files backup: $LAST_FILES_BACKUP ($(du -h "$LAST_FILES_BACKUP" | cut -f1))"
     else
         log_warning "No files to backup"
+        LAST_FILES_BACKUP=""
     fi
-    
-    echo "$FILES_BACKUP"
 }
 
 # ==============================================================================
@@ -133,8 +131,8 @@ backup_full() {
     
     cd "$PROJECT_ROOT"
     
-    # First backup database
-    DB_FILE=$(backup_database)
+    # First backup database (sets LAST_DB_BACKUP variable)
+    backup_database
     
     # Create temporary directory for packaging
     TEMP_DIR=$(mktemp -d)
@@ -150,7 +148,11 @@ backup_full() {
     [ -f ".env" ] && cp .env "$TEMP_DIR/evernote-clone-backup/"
     [ -f ".env.example" ] && cp .env.example "$TEMP_DIR/evernote-clone-backup/"
     cp package.json pnpm-workspace.yaml pnpm-lock.yaml "$TEMP_DIR/evernote-clone-backup/" 2>/dev/null || true
-    cp "$DB_FILE" "$TEMP_DIR/evernote-clone-backup/database_backup.sql.gz"
+    
+    # Copy database backup
+    if [ -n "$LAST_DB_BACKUP" ] && [ -f "$LAST_DB_BACKUP" ]; then
+        cp "$LAST_DB_BACKUP" "$TEMP_DIR/evernote-clone-backup/database_backup.sql.gz"
+    fi
     
     # Exclude node_modules and dist
     cd "$TEMP_DIR"
@@ -161,7 +163,6 @@ backup_full() {
     rm -rf "$TEMP_DIR"
     
     log_success "Full backup: $FULL_BACKUP ($(du -h "$FULL_BACKUP" | cut -f1))"
-    echo "$FULL_BACKUP"
 }
 
 # ==============================================================================
