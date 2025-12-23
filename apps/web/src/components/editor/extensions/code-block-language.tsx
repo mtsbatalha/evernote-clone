@@ -124,7 +124,7 @@ function CodeBlockView({ node, updateAttributes, extension }: CodeBlockViewProps
 
                 {/* Code content */}
                 <pre className="p-4 overflow-x-auto text-sm">
-                    <NodeViewContent as="code" className={cn(
+                    <NodeViewContent {...{ as: "code" } as any} className={cn(
                         'hljs',
                         language && `language-${language}`
                     )} />
