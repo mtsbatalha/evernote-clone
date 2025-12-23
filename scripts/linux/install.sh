@@ -180,6 +180,8 @@ pnpm --filter @evernote-clone/database build
 log_success "Database package built"
 
 log_info "Building API..."
+# Clear TypeScript build cache to prevent stale incremental builds
+rm -f "$PROJECT_ROOT/apps/api/tsconfig.tsbuildinfo" 2>/dev/null || true
 pnpm --filter @evernote-clone/api build
 log_success "API built"
 
