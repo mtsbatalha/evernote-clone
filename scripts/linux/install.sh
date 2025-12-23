@@ -150,9 +150,9 @@ cd "$PROJECT_ROOT"
 
 # Run Prisma migrations
 log_info "Running database migrations..."
-cd "$PROJECT_ROOT/apps/api"
-pnpm exec prisma generate
-pnpm exec prisma db push
+cd "$PROJECT_ROOT"
+pnpm --filter @evernote-clone/database exec prisma generate
+pnpm --filter @evernote-clone/database exec prisma db push
 log_success "Database setup complete"
 
 # ==============================================================================
