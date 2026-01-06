@@ -5,9 +5,9 @@
     "scripts": {
         "build": "nest build",
         "dev": "ts-node -r tsconfig-paths/register src/main.ts",
-        "start": "node dist/main",
+        "start": "NODE_OPTIONS='--max-old-space-size=4096' node dist/main",
         "start:debug": "nest start --debug --watch",
-        "start:prod": "node dist/main",
+        "start:prod": "NODE_OPTIONS='--max-old-space-size=4096' node dist/main",
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
         "test": "jest",
         "test:watch": "jest --watch",
