@@ -146,10 +146,10 @@ check_is_remote() {
     local line=$(grep "^$var_name=" "$env_file" | head -n 1)
     if [ -z "$line" ]; then return 1; fi
     
-    # Local patterns
-    local local_patterns="localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch"
+    # Local patterns (matches hostnames: //host or @host)
+    local local_patterns="(@|//)(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)(:|/|$)"
     
-    if echo "$line" | grep -qE "($local_patterns)"; then
+    if echo "$line" | grep -qE "$local_patterns"; then
         return 1 # Local
     fi
     

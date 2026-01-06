@@ -25,7 +25,8 @@ function Get-DockerServices {
         return "postgres", "redis", "minio", "minio-setup", "meilisearch"
     }
     
-    $localPatterns = "(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)"
+    # Local patterns (matches hostnames: //host or @host)
+    $localPatterns = "(@|//)(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)(:|/|$)"
     
     # Postgres
     if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
