@@ -131,9 +131,28 @@ cd "$PROJECT_ROOT"
 export PORT=$API_PORT
 export WS_PORT=$WS_PORT
 
-# Determine Public API URL
-if [ -z "$API_PUBLIC_URL" ] && [ -f "$PROJECT_ROOT/.env" ]; then
-    API_PUBLIC_URL=$(grep "^API_PUBLIC_URL=" "$PROJECT_ROOT/.env" | cut -d '=' -f2 | tr -d '"')
+# Determine Public URLs
+# Priority: 1. Environment Variable, 2. .env file, 3. Auto-detect LAN IP, 4. Localhost
+
+# Helper to read from .env if variable not set
+read_env_var() {
+    local var_name=$1
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        grep "^$var_name=" "$PROJECT_ROOT/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'"
+    fi
+}
+
+if [ -z "$API_PUBLIC_URL" ]; then API_PUBLIC_URL=$(read_env_var "API_PUBLIC_URL"); fi
+if [ -z "$APP_URL" ]; then APP_URL=$(read_env_var "APP_URL"); fi
+
+# Auto-detect if still empty
+if [ -z "$API_PUBLIC_URL" ] || [ -z "$APP_URL" ]; then
+    LAN_IP=$(get_lan_ip)
+    if [ -n "$LAN_IP" ]; then
+        log_info "Auto-detected LAN IP: $LAN_IP"
+        if [ -z "$API_PUBLIC_URL" ]; then API_PUBLIC_URL="http://$LAN_IP:$API_PORT"; fi
+        if [ -z "$APP_URL" ]; then APP_URL="http://$LAN_IP:$WEB_PORT"; fi
+    fi
 fi
 
 if [ -n "$API_PUBLIC_URL" ]; then
@@ -143,6 +162,15 @@ if [ -n "$API_PUBLIC_URL" ]; then
 else
     export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
     log_info "Using Local API URL: $NEXT_PUBLIC_API_URL"
+fi
+
+# Export APP_URL for NextAuth if needed (NextAuth usually mimics the request host, but good to be explicit)
+if [ -n "$APP_URL" ]; then
+    export NEXTAUTH_URL="$APP_URL"
+    log_info "Using App URL: $APP_URL"
+else
+    # Default fallback
+    export NEXTAUTH_URL="http://localhost:$WEB_PORT"
 fi
 
 # Start API in background using pnpm to resolve node_modules correctly

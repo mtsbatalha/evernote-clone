@@ -211,6 +211,28 @@ get_docker_services() {
     echo "$services"
 }
 
+# Try to detect LAN IP address (priority: valid non-local IPv4)
+get_lan_ip() {
+    # Try hostname -I first (common on Linux)
+    if command -v hostname &> /dev/null; then
+        local ips=$(hostname -I 2>/dev/null)
+        for ip in $ips; do
+            # Filter for likely LAN IPs (192.168, 10., 172.16-31)
+            if [[ "$ip" =~ ^192\.168\. ]] || [[ "$ip" =~ ^10\. ]] || [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]]; then
+                echo "$ip"
+                return 0
+            fi
+        done
+        # Fallback to first non-loopback if no specific LAN range found
+        if [ -n "$ips" ]; then 
+            echo "$ips" | awk '{print $1}'
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
 # Export common variables
 export PROJECT_ROOT
 export PID_DIR

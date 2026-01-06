@@ -228,20 +228,67 @@ pnpm db:generate
 Write-Host "  Running db:push..." -ForegroundColor Gray
 pnpm db:push
 
+
 # --- Determine Public URLs ---
-$env:NEXT_PUBLIC_API_URL = "http://localhost:4000/api"
+# Priority: 1. Environment Variable, 2. .env file, 3. Auto-detect LAN IP, 4. Localhost
+
+$publicApiUrl = $env:API_PUBLIC_URL
+$appUrl = $env:APP_URL
 
 if (Test-Path ".env") {
     $envContent = Get-Content ".env" -Raw
-    if ($envContent -match 'API_PUBLIC_URL\s*=\s*(.*)') {
+    if (-not $publicApiUrl -and $envContent -match 'API_PUBLIC_URL\s*=\s*(.*)') {
         $publicApiUrl = $matches[1].Trim().Trim('"').Trim("'")
-        if (-not [string]::IsNullOrWhiteSpace($publicApiUrl)) {
-            $env:API_PUBLIC_URL = $publicApiUrl
-            $env:NEXT_PUBLIC_API_URL = "$publicApiUrl/api"
-            Write-Host "  Using Public API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
-        }
+    }
+    if (-not $appUrl -and $envContent -match 'APP_URL\s*=\s*(.*)') {
+        $appUrl = $matches[1].Trim().Trim('"').Trim("'")
     }
 }
+
+# Auto-detect if still empty
+if (-not $publicApiUrl -or -not $appUrl) {
+    try {
+        # Get IPv4 address on an interface that has a default gateway (likely the internet connecting one)
+        # Or fall back to any non-loopback IPv4
+        $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { 
+                $_.InterfaceAlias -notmatch "Loopback|WSL|vEthernet" -and $_.IPAddress -notmatch "^127\." -and $_.IPAddress -notmatch "^169\.254\."
+            } | Select-Object -First 1).IPAddress
+
+        if ($ip) {
+            Write-Host "  Auto-detected LAN IP: $ip" -ForegroundColor Green
+            if (-not $publicApiUrl) { $publicApiUrl = "http://$ip`:$env:PORT_API" }
+            if (-not $appUrl) { $appUrl = "http://$ip`:$env:PORT_WEB" }
+            
+            # Define ports if not set in environment yet (fallback for script logic)
+            if (-not $publicApiUrl) { $publicApiUrl = "http://$ip`:4000" }
+            if (-not $appUrl) { $appUrl = "http://$ip`:3000" }
+        }
+    }
+    catch {
+        Write-Host "  Could not auto-detect LAN IP: $_" -ForegroundColor Gray
+    }
+}
+
+if ($publicApiUrl) {
+    $env:API_PUBLIC_URL = $publicApiUrl
+    $env:NEXT_PUBLIC_API_URL = "$publicApiUrl/api"
+    Write-Host "  Using Public API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
+}
+else {
+    $env:NEXT_PUBLIC_API_URL = "http://localhost:4000/api"
+    Write-Host "  Using Local API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Gray
+}
+
+if ($appUrl) {
+    $env:APP_URL = $appUrl
+    $env:NEXTAUTH_URL = $appUrl
+    Write-Host "  Using App URL: $appUrl" -ForegroundColor Green
+}
+else {
+    $env:NEXTAUTH_URL = "http://localhost:3000"
+    Write-Host "  Using Local App URL: $($env:NEXTAUTH_URL)" -ForegroundColor Gray
+}
+
 
 # --- Start Development Servers ---
 Write-Host "`n--- Starting Development Servers ---" -ForegroundColor Cyan
