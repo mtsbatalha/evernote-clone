@@ -65,6 +65,37 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
+## Using Remote Services
+
+To use remote PostgreSQL, Redis, S3, or Meilisearch instead of local Docker containers:
+
+### Option 1: Set USE_REMOTE_SERVICES=true
+
+Edit your `.env` file:
+
+```env
+USE_REMOTE_SERVICES="true"
+DATABASE_URL="postgresql://user:password@remote-host:5432/database?schema=public&sslmode=require"
+REDIS_URL="redis://:password@remote-host:6379"
+S3_ENDPOINT="https://s3.amazonaws.com"
+S3_FORCE_PATH_STYLE="false"
+MEILISEARCH_HOST="https://your-meilisearch-instance.com"
+```
+
+### Option 2: Auto-detection
+
+If your `DATABASE_URL` points to a non-localhost address, Docker containers will be skipped automatically.
+
+### S3 Providers
+
+| Provider | Endpoint | S3_FORCE_PATH_STYLE |
+|----------|----------|---------------------|
+| MinIO (local) | `http://localhost:9000` | `true` |
+| AWS S3 | `https://s3.amazonaws.com` | `false` |
+| Cloudflare R2 | `https://<account>.r2.cloudflarestorage.com` | `true` |
+| DigitalOcean | `https://<region>.digitaloceanspaces.com` | `true` |
+
+
 ### 5. Start Development Servers
 
 ```bash

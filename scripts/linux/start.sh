@@ -19,36 +19,60 @@ echo ""
 ensure_directories
 
 # ==============================================================================
+# Check if using remote services
+# ==============================================================================
+
+USE_REMOTE_SERVICES=false
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    # Check USE_REMOTE_SERVICES flag
+    if grep -qE 'USE_REMOTE_SERVICES\s*=\s*"?true"?' "$PROJECT_ROOT/.env"; then
+        USE_REMOTE_SERVICES=true
+        log_info "USE_REMOTE_SERVICES=true detected"
+    # Check if DATABASE_URL points to non-localhost
+    elif grep -qE 'DATABASE_URL.*@[^l][^o][^c][^a][^l]' "$PROJECT_ROOT/.env"; then
+        USE_REMOTE_SERVICES=true
+        log_info "Remote database detected in DATABASE_URL"
+    fi
+fi
+
+# ==============================================================================
 # Check Docker Services
 # ==============================================================================
 
-log_info "Checking Docker services..."
+if [ "$USE_REMOTE_SERVICES" = false ]; then
+    log_info "Checking Docker services..."
 
-DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
+    DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
 
-if [ -f "$DOCKER_COMPOSE_FILE" ]; then
-    cd "$PROJECT_ROOT/docker"
-    
-    # Check if containers are running
-    if docker compose version &>/dev/null 2>&1; then
-        RUNNING=$(docker compose ps --status running -q 2>/dev/null | wc -l)
-    else
-        RUNNING=$(docker-compose ps -q 2>/dev/null | wc -l)
-    fi
-    
-    if [ "$RUNNING" -lt 4 ]; then
-        log_warning "Docker services not fully running. Starting..."
+    if [ -f "$DOCKER_COMPOSE_FILE" ]; then
+        cd "$PROJECT_ROOT/docker"
+        
+        # Check if containers are running
         if docker compose version &>/dev/null 2>&1; then
-            docker compose up -d
+            RUNNING=$(docker compose ps --status running -q 2>/dev/null | wc -l)
         else
-            docker-compose up -d
+            RUNNING=$(docker-compose ps -q 2>/dev/null | wc -l)
         fi
-        log_info "Waiting for services to be ready..."
-        sleep 5
-    else
-        log_success "Docker services are running"
+        
+        if [ "$RUNNING" -lt 4 ]; then
+            log_warning "Docker services not fully running. Starting..."
+            if docker compose version &>/dev/null 2>&1; then
+                docker compose up -d
+            else
+                docker-compose up -d
+            fi
+            log_info "Waiting for services to be ready..."
+            sleep 5
+        else
+            log_success "Docker services are running"
+        fi
     fi
+else
+    log_warning "Skipping Docker containers (using remote services)"
+    log_info "Make sure your remote PostgreSQL, Redis, S3, and Meilisearch are accessible!"
 fi
+
 
 # ==============================================================================
 # Find Available Ports

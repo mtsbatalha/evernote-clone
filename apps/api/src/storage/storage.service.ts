@@ -17,9 +17,11 @@ export class StorageService {
             endpoint: this.configService.get<string>('S3_ENDPOINT') || 'http://localhost:9000',
             accessKeyId: this.configService.get<string>('S3_ACCESS_KEY') || 'minioadmin',
             secretAccessKey: this.configService.get<string>('S3_SECRET_KEY') || 'minioadmin',
-            s3ForcePathStyle: true, // Required for MinIO
+            s3ForcePathStyle: this.configService.get<string>('S3_FORCE_PATH_STYLE') !== 'false',
             signatureVersion: 'v4',
+            region: this.configService.get<string>('S3_REGION') || 'us-east-1',
         });
+
 
         this.bucket = this.configService.get<string>('S3_BUCKET') || 'evernote-attachments';
     }

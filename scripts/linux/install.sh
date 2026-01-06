@@ -114,32 +114,54 @@ pnpm install
 log_success "Dependencies installed"
 
 # ==============================================================================
-# Start Docker Services
+# Check if using remote services
 # ==============================================================================
 
-log_info "Starting Docker services (PostgreSQL, Redis, MinIO, Meilisearch)..."
+USE_REMOTE_SERVICES=false
 
-DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
-
-if [ -f "$DOCKER_COMPOSE_FILE" ]; then
-    cd "$PROJECT_ROOT/docker"
-    
-    # Check if docker compose v2 is available
-    if docker compose version &>/dev/null 2>&1; then
-        docker compose up -d
-    else
-        docker-compose up -d
+if [ -f "$ENV_FILE" ]; then
+    if grep -qE 'USE_REMOTE_SERVICES\s*=\s*"?true"?' "$ENV_FILE"; then
+        USE_REMOTE_SERVICES=true
+        log_info "USE_REMOTE_SERVICES=true detected - skipping Docker setup"
+    elif grep -qE 'DATABASE_URL.*@[^l][^o][^c][^a][^l]' "$ENV_FILE"; then
+        USE_REMOTE_SERVICES=true
+        log_info "Remote database detected in DATABASE_URL - skipping Docker setup"
     fi
-    
-    log_success "Docker services started"
-    
-    # Wait for services to be healthy
-    log_info "Waiting for services to be healthy..."
-    sleep 10
-else
-    log_error "docker-compose.yml not found at $DOCKER_COMPOSE_FILE"
-    exit 1
 fi
+
+# ==============================================================================
+# Start Docker Services (if using local)
+# ==============================================================================
+
+if [ "$USE_REMOTE_SERVICES" = false ]; then
+    log_info "Starting Docker services (PostgreSQL, Redis, MinIO, Meilisearch)..."
+
+    DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
+
+    if [ -f "$DOCKER_COMPOSE_FILE" ]; then
+        cd "$PROJECT_ROOT/docker"
+        
+        # Check if docker compose v2 is available
+        if docker compose version &>/dev/null 2>&1; then
+            docker compose up -d
+        else
+            docker-compose up -d
+        fi
+        
+        log_success "Docker services started"
+        
+        # Wait for services to be healthy
+        log_info "Waiting for services to be healthy..."
+        sleep 10
+    else
+        log_error "docker-compose.yml not found at $DOCKER_COMPOSE_FILE"
+        exit 1
+    fi
+else
+    log_warning "Skipping Docker services (using remote services)"
+    log_info "Make sure your remote PostgreSQL, Redis, S3, and Meilisearch are accessible!"
+fi
+
 
 # ==============================================================================
 # Database Setup
