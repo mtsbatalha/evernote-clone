@@ -14,13 +14,35 @@ if (Test-Path ".env") {
     # Check USE_REMOTE_SERVICES flag
     if ($envContent -match 'USE_REMOTE_SERVICES\s*=\s*"?true"?') {
         $useRemoteServices = $true
-        Write-Host "  USE_REMOTE_SERVICES=true detected" -ForegroundColor Yellow
+        Write-Host "  USE_REMOTE_SERVICES=true detected - skipping all Docker containers" -ForegroundColor Yellow
     }
-    # Check if DATABASE_URL points to non-localhost
-    elseif ($envContent -match 'DATABASE_URL.*@[^l][^o][^c][^a][^l]') {
-        $useRemoteServices = $true
-        Write-Host "  Remote database detected in DATABASE_URL" -ForegroundColor Yellow
+}
+
+function Get-DockerScaleArgs {
+    param ($envContent)
+    $scaleArgsList = @()
+    if (-not $envContent) { return $scaleArgsList }
+    
+    $localPatterns = "(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)"
+    
+    # Postgres
+    if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
+        $scaleArgsList += "--scale"; $scaleArgsList += "postgres=0"
     }
+    # Redis
+    if ($envContent -match 'REDIS_URL\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
+        $scaleArgsList += "--scale"; $scaleArgsList += "redis=0"
+    }
+    # S3
+    if ($envContent -match 'S3_ENDPOINT\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
+        $scaleArgsList += "--scale"; $scaleArgsList += "minio=0"; $scaleArgsList += "--scale"; $scaleArgsList += "minio-setup=0"
+    }
+    # Meilisearch
+    if ($envContent -match 'MEILISEARCH_HOST\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
+        $scaleArgsList += "--scale"; $scaleArgsList += "meilisearch=0"
+    }
+    
+    return $scaleArgsList
 }
 
 if (-not $useRemoteServices) {
@@ -124,18 +146,29 @@ if (-not $useRemoteServices) {
     Write-Host "`n--- Stopping existing Docker containers ---" -ForegroundColor Cyan
     docker-compose -f docker/docker-compose.yml down --remove-orphans 2>&1 | Out-Null
 
-    # --- Start all Docker containers ---
+    # --- Start Docker containers (with smart scaling) ---
     Write-Host "`n--- Starting Docker containers ---" -ForegroundColor Cyan
-    Write-Host "  Starting: PostgreSQL, Redis, MinIO, Meilisearch" -ForegroundColor Gray
-    docker-compose -f docker/docker-compose.yml up -d
+    $scaleArgs = Get-DockerScaleArgs $envContent
+    if ($scaleArgs) {
+        Write-Host "  Partial remote services detected. Scaling Docker: $($scaleArgs -join ' ')" -ForegroundColor Yellow
+    }
+    
+    Write-Host "  Starting local infrastructure..." -ForegroundColor Gray
+    docker-compose -f docker/docker-compose.yml up -d $scaleArgs
 
     # --- Wait for containers to be healthy ---
     Write-Host "`n--- Waiting for containers to be healthy ---" -ForegroundColor Cyan
-    $services = @("evernote-postgres", "evernote-redis", "evernote-minio", "evernote-meilisearch")
+    $allServices = @("evernote-postgres", "evernote-redis", "evernote-minio", "evernote-meilisearch")
     $maxWait = 60
     $waited = 0
 
-    foreach ($service in $services) {
+    foreach ($service in $allServices) {
+        # Check if this service was scaled to 0
+        $shortName = $service.Replace("evernote-", "")
+        if ($scaleArgs -contains "$shortName=0") {
+            continue
+        }
+
         Write-Host "  Waiting for $service..." -ForegroundColor Gray -NoNewline
         while ($waited -lt $maxWait) {
             $status = docker inspect --format='{{.State.Health.Status}}' $service 2>&1

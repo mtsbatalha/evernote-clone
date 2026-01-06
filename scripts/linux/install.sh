@@ -122,10 +122,7 @@ USE_REMOTE_SERVICES=false
 if [ -f "$ENV_FILE" ]; then
     if grep -qE 'USE_REMOTE_SERVICES\s*=\s*"?true"?' "$ENV_FILE"; then
         USE_REMOTE_SERVICES=true
-        log_info "USE_REMOTE_SERVICES=true detected - skipping Docker setup"
-    elif grep -qE 'DATABASE_URL.*@[^l][^o][^c][^a][^l]' "$ENV_FILE"; then
-        USE_REMOTE_SERVICES=true
-        log_info "Remote database detected in DATABASE_URL - skipping Docker setup"
+        log_info "USE_REMOTE_SERVICES=true detected - skipping all Docker setup"
     fi
 fi
 
@@ -136,16 +133,23 @@ fi
 if [ "$USE_REMOTE_SERVICES" = false ]; then
     log_info "Starting Docker services (PostgreSQL, Redis, MinIO, Meilisearch)..."
 
-    DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
+    # Get scaling arguments for partial remote services
+    SCALE_ARGS=$(get_docker_scale_args "$ENV_FILE")
 
     if [ -f "$DOCKER_COMPOSE_FILE" ]; then
         cd "$PROJECT_ROOT/docker"
         
+        if [ -n "$SCALE_ARGS" ]; then
+            log_info "Partial remote services detected. Scaling Docker: $SCALE_ARGS"
+        fi
+
+        log_info "Starting Docker services..."
+        
         # Check if docker compose v2 is available
         if docker compose version &>/dev/null 2>&1; then
-            docker compose up -d
+            docker compose up -d $SCALE_ARGS
         else
-            docker-compose up -d
+            docker-compose up -d $SCALE_ARGS
         fi
         
         log_success "Docker services started"

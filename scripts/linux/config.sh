@@ -134,6 +134,54 @@ get_process_pid() {
     fi
 }
 
+# Check if a service is remote based on its environment variable
+# Returns 0 if remote, 1 if local
+check_is_remote() {
+    local var_name=$1
+    local env_file=$2
+    
+    if [ ! -f "$env_file" ]; then return 1; fi
+    
+    # Get the line, excluding comments
+    local line=$(grep "^$var_name=" "$env_file" | head -n 1)
+    if [ -z "$line" ]; then return 1; fi
+    
+    # Local patterns
+    local local_patterns="localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch"
+    
+    if echo "$line" | grep -qE "($local_patterns)"; then
+        return 1 # Local
+    fi
+    
+    return 0 # Remote
+}
+
+# Get docker scale arguments based on remote services detection
+get_docker_scale_args() {
+    local env_file=$1
+    local scale_args=""
+    
+    if [ ! -f "$env_file" ]; then echo ""; return; fi
+    
+    if check_is_remote "DATABASE_URL" "$env_file"; then
+        scale_args="$scale_args --scale postgres=0"
+    fi
+    
+    if check_is_remote "REDIS_URL" "$env_file"; then
+        scale_args="$scale_args --scale redis=0"
+    fi
+    
+    if check_is_remote "S3_ENDPOINT" "$env_file"; then
+        scale_args="$scale_args --scale minio=0 --scale minio-setup=0"
+    fi
+    
+    if check_is_remote "MEILISEARCH_HOST" "$env_file"; then
+        scale_args="$scale_args --scale meilisearch=0"
+    fi
+    
+    echo "$scale_args"
+}
+
 # Export common variables
 export PROJECT_ROOT
 export PID_DIR
