@@ -18,31 +18,50 @@ if (Test-Path ".env") {
     }
 }
 
-function Get-DockerScaleArgs {
+function Get-DockerServices {
     param ($envContent)
-    $scaleArgsList = @()
-    if (-not $envContent) { return $scaleArgsList }
+    $services = @()
+    if (-not $envContent) { 
+        return "postgres", "redis", "minio", "minio-setup", "meilisearch"
+    }
     
     $localPatterns = "(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)"
     
     # Postgres
-    if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
-        $scaleArgsList += "--scale"; $scaleArgsList += "postgres=0"
+    if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
+        $services += "postgres"
     }
+    elseif ($envContent -notmatch 'DATABASE_URL\s*=') {
+        $services += "postgres" # Default to local if not specified
+    }
+
     # Redis
-    if ($envContent -match 'REDIS_URL\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
-        $scaleArgsList += "--scale"; $scaleArgsList += "redis=0"
+    if ($envContent -match 'REDIS_URL\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
+        $services += "redis"
     }
+    elseif ($envContent -notmatch 'REDIS_URL\s*=') {
+        $services += "redis"
+    }
+
     # S3
-    if ($envContent -match 'S3_ENDPOINT\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
-        $scaleArgsList += "--scale"; $scaleArgsList += "minio=0"; $scaleArgsList += "--scale"; $scaleArgsList += "minio-setup=0"
+    if ($envContent -match 'S3_ENDPOINT\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
+        $services += "minio"
+        $services += "minio-setup"
     }
+    elseif ($envContent -notmatch 'S3_ENDPOINT\s*=') {
+        $services += "minio"
+        $services += "minio-setup"
+    }
+
     # Meilisearch
-    if ($envContent -match 'MEILISEARCH_HOST\s*=\s*[^\s]+' -and ($matches[0] -notmatch $localPatterns)) {
-        $scaleArgsList += "--scale"; $scaleArgsList += "meilisearch=0"
+    if ($envContent -match 'MEILISEARCH_HOST\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
+        $services += "meilisearch"
+    }
+    elseif ($envContent -notmatch 'MEILISEARCH_HOST\s*=') {
+        $services += "meilisearch"
     }
     
-    return $scaleArgsList
+    return $services
 }
 
 if (-not $useRemoteServices) {
@@ -146,26 +165,23 @@ if (-not $useRemoteServices) {
     Write-Host "`n--- Stopping existing Docker containers ---" -ForegroundColor Cyan
     docker-compose -f docker/docker-compose.yml down --remove-orphans 2>&1 | Out-Null
 
-    # --- Start Docker containers (with smart scaling) ---
+    # --- Start Docker containers (Selective Startup) ---
     Write-Host "`n--- Starting Docker containers ---" -ForegroundColor Cyan
-    $scaleArgs = Get-DockerScaleArgs $envContent
-    if ($scaleArgs) {
-        Write-Host "  Partial remote services detected. Scaling Docker: $($scaleArgs -join ' ')" -ForegroundColor Yellow
-    }
+    $servicesToStart = Get-DockerServices $envContent
     
-    Write-Host "  Starting local infrastructure..." -ForegroundColor Gray
-    docker-compose -f docker/docker-compose.yml up -d $scaleArgs
+    Write-Host "  Starting local services: $($servicesToStart -join ', ')" -ForegroundColor Yellow
+    docker-compose -f docker/docker-compose.yml up -d $servicesToStart
 
     # --- Wait for containers to be healthy ---
     Write-Host "`n--- Waiting for containers to be healthy ---" -ForegroundColor Cyan
-    $allServices = @("evernote-postgres", "evernote-redis", "evernote-minio", "evernote-meilisearch")
+    $allDockerServices = @("evernote-postgres", "evernote-redis", "evernote-minio", "evernote-meilisearch")
     $maxWait = 60
     $waited = 0
 
-    foreach ($service in $allServices) {
-        # Check if this service was scaled to 0
+    foreach ($service in $allDockerServices) {
+        # Check if this service was started
         $shortName = $service.Replace("evernote-", "")
-        if ($scaleArgs -contains "$shortName=0") {
+        if ($servicesToStart -notcontains $shortName) {
             continue
         }
 

@@ -182,6 +182,35 @@ get_docker_scale_args() {
     echo "$scale_args"
 }
 
+# Get list of services to start based on local/remote detection
+get_docker_services() {
+    local env_file=$1
+    local services=""
+    
+    if [ ! -f "$env_file" ]; then 
+        echo "postgres redis minio minio-setup meilisearch"
+        return
+    fi
+    
+    if ! check_is_remote "DATABASE_URL" "$env_file"; then
+        services="$services postgres"
+    fi
+    
+    if ! check_is_remote "REDIS_URL" "$env_file"; then
+        services="$services redis"
+    fi
+    
+    if ! check_is_remote "S3_ENDPOINT" "$env_file"; then
+        services="$services minio minio-setup"
+    fi
+    
+    if ! check_is_remote "MEILISEARCH_HOST" "$env_file"; then
+        services="$services meilisearch"
+    fi
+    
+    echo "$services"
+}
+
 # Export common variables
 export PROJECT_ROOT
 export PID_DIR

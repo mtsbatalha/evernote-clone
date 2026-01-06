@@ -51,18 +51,14 @@ if [ "$USE_REMOTE_SERVICES" = false ]; then
             RUNNING=$(docker-compose ps -q 2>/dev/null | wc -l)
         fi
         
-        # Get scaling arguments for partial remote services
-        SCALE_ARGS=$(get_docker_scale_args "$PROJECT_ROOT/.env")
+        # Get list of services to start for hybrid setup
+        SERVICES_TO_START=$(get_docker_services "$PROJECT_ROOT/.env")
         
-        if [ -n "$SCALE_ARGS" ]; then
-            log_info "Partial remote services detected. Scaling Docker: $SCALE_ARGS"
-        fi
-
-        log_info "Ensuring Docker services are running..."
+        log_info "Ensuring Docker services are running: $SERVICES_TO_START"
         if docker compose version &>/dev/null 2>&1; then
-            docker compose up -d $SCALE_ARGS
+            docker compose up -d $SERVICES_TO_START
         else
-            docker-compose up -d $SCALE_ARGS
+            docker-compose up -d $SERVICES_TO_START
         fi
         
         log_info "Waiting for services to be ready..."
