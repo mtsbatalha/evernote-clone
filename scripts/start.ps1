@@ -269,14 +269,14 @@ if (-not $publicApiUrl -or -not $appUrl) {
     }
 }
 
+# Note: Frontend uses hardcoded '/api' which is proxied by Nginx to the API server.
+# No NEXT_PUBLIC_API_URL export needed since it's handled at the Nginx/proxy level.
 if ($publicApiUrl) {
     $env:API_PUBLIC_URL = $publicApiUrl
-    $env:NEXT_PUBLIC_API_URL = "$publicApiUrl/api"
-    Write-Host "  Using Public API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
+    Write-Host "  API accessible at: $publicApiUrl" -ForegroundColor Green
 }
 else {
-    $env:NEXT_PUBLIC_API_URL = "http://localhost:4000/api"
-    Write-Host "  Using Local API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Gray
+    Write-Host "  API accessible at: http://localhost:4000" -ForegroundColor Gray
 }
 
 if ($appUrl) {
@@ -293,7 +293,7 @@ else {
 # --- Start Development Servers ---
 Write-Host "`n--- Starting Development Servers ---" -ForegroundColor Cyan
 Write-Host "  Web: http://localhost:3000" -ForegroundColor Green
-Write-Host "  API: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
+Write-Host "  API: http://localhost:4000" -ForegroundColor Green
 Write-Host "  Press Ctrl+C to stop" -ForegroundColor Yellow
 Write-Host ""
 pnpm dev

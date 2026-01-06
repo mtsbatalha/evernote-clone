@@ -115,6 +115,31 @@ Email: demo@example.com
 Password: demo123
 ```
 
+## Nginx Proxy Manager (Production)
+
+When deploying behind **Nginx Proxy Manager**, you need to configure a **Custom Location** for the API:
+
+### Setup
+
+1. **Main Proxy Host** for your domain (e.g., `notes.example.com`):
+   - Forward Hostname/IP: `172.17.0.1` (Docker host gateway)
+   - Forward Port: `3000`
+
+2. **Add Custom Location** for `/api`:
+   - Location: `/api`
+   - Forward Hostname/IP: `172.17.0.1`
+   - Forward Port: `4000`
+
+> **Note**: Use `172.17.0.1` instead of `localhost` when Nginx Proxy Manager runs in Docker.
+
+### Why This Is Needed
+
+The frontend uses `/api` as a relative URL. When a browser at `https://notes.example.com` makes a request to `/api/auth/login`, Nginx must proxy that to the API server on port 4000. Without this Custom Location, requests would incorrectly go to the Next.js server (port 3000).
+
+### Cloudflare Users
+
+If using Cloudflare, remember to **Purge Cache** after rebuilding the application to avoid serving stale JavaScript files.
+
 ## Project Structure
 
 ```

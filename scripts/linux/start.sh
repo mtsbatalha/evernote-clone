@@ -84,6 +84,29 @@ fi
 
 
 # ==============================================================================
+# Cleanup Orphan Processes
+# ==============================================================================
+
+log_info "Cleaning up orphan processes..."
+
+# Kill any orphan Node.js processes from previous runs
+if [ -n "$(pgrep -f 'node.*evernote-clone/apps/api')" ]; then
+    pkill -9 -f 'node.*evernote-clone/apps/api' 2>/dev/null || true
+    log_warning "Killed orphan API processes"
+fi
+
+if [ -n "$(pgrep -f 'node.*evernote-clone/apps/web')" ]; then
+    pkill -9 -f 'node.*evernote-clone/apps/web' 2>/dev/null || true
+    log_warning "Killed orphan Web processes"
+fi
+
+# Clean up stale PID files
+rm -f "$API_PID_FILE" "$WEB_PID_FILE" 2>/dev/null || true
+
+# Wait for ports to be released
+sleep 1
+
+# ==============================================================================
 # Find Available Ports
 # ==============================================================================
 
@@ -168,13 +191,13 @@ if [ -z "$API_PUBLIC_URL" ] || [ -z "$APP_URL" ]; then
     fi
 fi
 
+# Note: Frontend uses hardcoded '/api' which is proxied by Nginx to the API server.
+# No NEXT_PUBLIC_API_URL export needed since it's handled at the Nginx/proxy level.
 if [ -n "$API_PUBLIC_URL" ]; then
     export API_PUBLIC_URL
-    export NEXT_PUBLIC_API_URL="$API_PUBLIC_URL/api"
-    log_info "Using Public API URL: $NEXT_PUBLIC_API_URL"
+    log_info "API accessible at: $API_PUBLIC_URL"
 else
-    export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
-    log_info "Using Local API URL: $NEXT_PUBLIC_API_URL"
+    log_info "API accessible at: http://localhost:$API_PORT"
 fi
 
 # Export APP_URL for NextAuth if needed (NextAuth usually mimics the request host, but good to be explicit)
