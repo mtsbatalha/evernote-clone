@@ -125,7 +125,7 @@ if [ "$STOP_DOCKER" = true ]; then
         fi
 
         # Ensure cleanup of containers by name (handle old project name)
-        CONTAINERS=("evernote-postgres" "evernote-redis" "evernote-minio" "evernote-meilisearch" "evernote-minio-setup")
+        CONTAINERS=("evernote-mysql" "evernote-redis" "evernote-minio" "evernote-meilisearch" "evernote-minio-setup")
         for container in "${CONTAINERS[@]}"; do
             if docker ps -aq -f name="^/${container}$" | grep -q .; then
                 log_info "Force removing container $container..."

@@ -67,7 +67,7 @@ if [ -f "$DOCKER_COMPOSE_FILE" ]; then
         fi
     }
     
-    check_docker_service "PostgreSQL" "evernote-postgres" "$POSTGRES_PORT"
+    check_docker_service "MySQL" "evernote-mysql" "$MYSQL_PORT"
     check_docker_service "Redis" "evernote-redis" "$REDIS_PORT"
     check_docker_service "MinIO" "evernote-minio" "$MINIO_PORT/$MINIO_CONSOLE_PORT"
     check_docker_service "Meilisearch" "evernote-meilisearch" "$MEILISEARCH_PORT"
