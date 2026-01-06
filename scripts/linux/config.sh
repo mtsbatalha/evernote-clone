@@ -79,6 +79,16 @@ is_port_available() {
     fi
 }
 
+# Check if a command exists
+check_command() {
+    local cmd=$1
+    if ! command -v "$cmd" &> /dev/null; then
+        log_error "Command not found: $cmd"
+        return 1
+    fi
+    return 0
+}
+
 # Find an available port from a list
 find_available_port() {
     local -n ports=$1

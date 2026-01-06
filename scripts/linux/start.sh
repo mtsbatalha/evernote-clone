@@ -18,6 +18,19 @@ echo ""
 
 ensure_directories
 
+# Check dependencies
+if ! check_command "pnpm"; then
+    log_error "pnpm is not installed or not in PATH."
+    log_info "Try running: npm install -g pnpm"
+    exit 1
+fi
+
+# Ensure log files exist
+touch "$API_LOG_FILE" "$WEB_LOG_FILE"
+log_info "Logging to:"
+log_info "  API: $API_LOG_FILE"
+log_info "  Web: $WEB_LOG_FILE"
+
 # ==============================================================================
 # Check if using remote services
 # ==============================================================================
@@ -174,9 +187,21 @@ else
 fi
 
 # Start API in background using pnpm to resolve node_modules correctly
+log_info "Executing pnpm run start for API..."
 nohup pnpm --filter @evernote-clone/api run start > "$API_LOG_FILE" 2>&1 &
 API_PID=$!
 echo $API_PID > "$API_PID_FILE"
+
+# Wait and verify
+sleep 2
+if ! ps -p "$API_PID" > /dev/null; then
+    log_error "API process died immediately!"
+    log_error "Check logs below:"
+    echo "--- Last 20 lines of $API_LOG_FILE ---"
+    tail -n 20 "$API_LOG_FILE"
+    echo "--------------------------------------"
+    exit 1
+fi
 
 # Wait and verify
 sleep 2
@@ -199,9 +224,21 @@ cd "$PROJECT_ROOT/apps/web"
 export PORT=$WEB_PORT
 
 # Start Web in background (listen on all interfaces for Docker/proxy access)
+log_info "Executing next start for Web..."
 nohup pnpm exec next start -p $WEB_PORT -H 0.0.0.0 > "$WEB_LOG_FILE" 2>&1 &
 WEB_PID=$!
 echo $WEB_PID > "$WEB_PID_FILE"
+
+# Wait and verify
+sleep 3
+if ! ps -p "$WEB_PID" > /dev/null; then
+    log_error "Web process died immediately!"
+    log_error "Check logs below:"
+    echo "--- Last 20 lines of $WEB_LOG_FILE ---"
+    tail -n 20 "$WEB_LOG_FILE"
+    echo "--------------------------------------"
+    exit 1
+fi
 
 # Wait and verify
 sleep 3
