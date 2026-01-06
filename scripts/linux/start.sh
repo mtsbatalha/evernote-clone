@@ -122,13 +122,13 @@ save_runtime_config
 
 if is_process_running "$API_PID_FILE"; then
     log_warning "API is already running (PID: $(get_process_pid $API_PID_FILE))"
-    log_warning "Use ./stop.sh first or ./restart.sh"
+    log_warning "Use ./scripts/linux/stop.sh first or ./scripts/linux/restart.sh"
     exit 1
 fi
 
 if is_process_running "$WEB_PID_FILE"; then
     log_warning "Web is already running (PID: $(get_process_pid $WEB_PID_FILE))"
-    log_warning "Use ./stop.sh first or ./restart.sh"
+    log_warning "Use ./scripts/linux/stop.sh first or ./scripts/linux/restart.sh"
     exit 1
 fi
 
