@@ -13,10 +13,12 @@ const nextConfig = {
         ],
     },
     async rewrites() {
+        // Use the public API URL if available, otherwise fallback to local
+        const apiBaseUrl = process.env.API_PUBLIC_URL || 'http://localhost:4000';
         return [
             {
-                source: '/api/v1/:path*',
-                destination: 'http://localhost:4000/api/:path*',
+                source: '/api/:path*',
+                destination: `${apiBaseUrl}/api/:path*`,
             },
         ];
     },
