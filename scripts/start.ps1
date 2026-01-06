@@ -1,4 +1,5 @@
 # start.ps1 - Start the Evernote Clone project
+$env:COMPOSE_PROJECT_NAME = "evernote-clone"
 
 Write-Host "========================================" -ForegroundColor Magenta
 Write-Host "   EVERNOTE CLONE - START SCRIPT       " -ForegroundColor Magenta

@@ -139,3 +139,4 @@ export PROJECT_ROOT
 export PID_DIR
 export LOG_DIR
 export SCRIPT_DIR
+export COMPOSE_PROJECT_NAME="evernote-clone"

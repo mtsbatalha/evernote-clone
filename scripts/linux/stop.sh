@@ -123,6 +123,16 @@ if [ "$STOP_DOCKER" = true ]; then
         else
             docker-compose down
         fi
+
+        # Ensure cleanup of containers by name (handle old project name)
+        CONTAINERS=("evernote-postgres" "evernote-redis" "evernote-minio" "evernote-meilisearch" "evernote-minio-setup")
+        for container in "${CONTAINERS[@]}"; do
+            if docker ps -aq -f name="^/${container}$" | grep -q .; then
+                log_info "Force removing container $container..."
+                docker stop "$container" >/dev/null 2>&1
+                docker rm "$container" >/dev/null 2>&1
+            fi
+        done
         
         log_success "Docker services stopped"
     fi

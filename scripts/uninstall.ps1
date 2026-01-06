@@ -1,4 +1,5 @@
 # uninstall.ps1 - Uninstallation Script for Evernote Clone
+$env:COMPOSE_PROJECT_NAME = "evernote-clone"
 
 Write-Host "========================================" -ForegroundColor Red
 Write-Host "   EVERNOTE CLONE - UNINSTALLATION      " -ForegroundColor Red

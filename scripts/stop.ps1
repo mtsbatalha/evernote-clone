@@ -1,4 +1,5 @@
 # stop.ps1 - Stop the Evernote Clone project
+$env:COMPOSE_PROJECT_NAME = "evernote-clone"
 
 Write-Host "========================================" -ForegroundColor Magenta
 Write-Host "   EVERNOTE CLONE - STOP SCRIPT        " -ForegroundColor Magenta
