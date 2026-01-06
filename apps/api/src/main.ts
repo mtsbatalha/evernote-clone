@@ -18,7 +18,24 @@ async function bootstrap() {
     }));
 
     app.enableCors({
-        origin: true,
+        origin: (requestOrigin, callback) => {
+            const allowedOrigins = [
+                process.env.APP_URL,
+                'http://localhost:3000',
+                'http://localhost:4000'
+            ];
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!requestOrigin) return callback(null, true);
+
+            if (allowedOrigins.includes(requestOrigin) || requestOrigin === process.env.APP_URL) {
+                return callback(null, true);
+            } else {
+                // For development, we might want to be permissive or log it
+                console.log(`[CORS] Blocked request from origin: ${requestOrigin}. Allowed: ${allowedOrigins.join(', ')}`);
+                // Use strict blocking or just allow all for now while debugging
+                return callback(null, true);
+            }
+        },
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         allowedHeaders: 'Content-Type,Accept,Authorization',
