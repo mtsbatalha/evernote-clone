@@ -59,6 +59,13 @@ if [ -f "$DOCKER_COMPOSE_FILE" ]; then
         local service=$1
         local container=$2
         local port=$3
+        local env_var=$4
+        
+        # Check if the service is configured as remote in .env
+        if [ -n "$env_var" ] && check_is_remote "$env_var" "$PROJECT_ROOT/.env"; then
+            echo -e "  $service:${NC}\t${BLUE}● Remote${NC}"
+            return
+        fi
         
         if docker ps --format '{{.Names}}' | grep -q "$container"; then
             echo -e "  $service:${NC}\t${GREEN}● Running${NC} (Port: $port)"
@@ -67,10 +74,10 @@ if [ -f "$DOCKER_COMPOSE_FILE" ]; then
         fi
     }
     
-    check_docker_service "MySQL" "evernote-mysql" "$MYSQL_PORT"
-    check_docker_service "Redis" "evernote-redis" "$REDIS_PORT"
-    check_docker_service "MinIO" "evernote-minio" "$MINIO_PORT/$MINIO_CONSOLE_PORT"
-    check_docker_service "Meilisearch" "evernote-meilisearch" "$MEILISEARCH_PORT"
+    check_docker_service "MySQL" "evernote-mysql" "$MYSQL_PORT" "DATABASE_URL"
+    check_docker_service "Redis" "evernote-redis" "$REDIS_PORT" "REDIS_URL"
+    check_docker_service "MinIO" "evernote-minio" "$MINIO_PORT/$MINIO_CONSOLE_PORT" "S3_ENDPOINT"
+    check_docker_service "Meilisearch" "evernote-meilisearch" "$MEILISEARCH_PORT" "MEILISEARCH_HOST"
 else
     echo -e "  ${YELLOW}Docker compose file not found${NC}"
 fi
