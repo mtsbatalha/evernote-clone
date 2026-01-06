@@ -66,7 +66,7 @@ if [ "$USE_REMOTE_SERVICES" = false ]; then
     fi
 else
     log_warning "Skipping Docker containers (using remote services)"
-    log_info "Make sure your remote PostgreSQL, Redis, S3, and Meilisearch are accessible!"
+    log_info "Make sure your remote MySQL, Redis, S3, and Meilisearch are accessible!"
 fi
 
 

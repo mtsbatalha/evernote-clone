@@ -131,7 +131,7 @@ fi
 # ==============================================================================
 
 if [ "$USE_REMOTE_SERVICES" = false ]; then
-    log_info "Starting Docker services (PostgreSQL, Redis, MinIO, Meilisearch)..."
+    log_info "Starting Docker services (MySQL, Redis, MinIO, Meilisearch)..."
 
     DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
 

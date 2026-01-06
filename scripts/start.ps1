@@ -22,18 +22,18 @@ function Get-DockerServices {
     param ($envContent)
     $services = @()
     if (-not $envContent) { 
-        return "postgres", "redis", "minio", "minio-setup", "meilisearch"
+        return "mysql", "redis", "minio", "minio-setup", "meilisearch"
     }
     
     # Local patterns (matches hostnames: //host or @host)
-    $localPatterns = "(@|//)(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)(:|/|$)"
+    $localPatterns = "(@|//)(localhost|127\.0\.0\.1|mysql|mariadb|redis|minio|meilisearch)(:|/|$)"
     
-    # Postgres
+    # MySQL
     if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {
-        $services += "postgres"
+        $services += "mysql"
     }
     elseif ($envContent -notmatch 'DATABASE_URL\s*=') {
-        $services += "postgres" # Default to local if not specified
+        $services += "mysql" # Default to local if not specified
     }
 
     # Redis
@@ -175,7 +175,7 @@ if (-not $useRemoteServices) {
 
     # --- Wait for containers to be healthy ---
     Write-Host "`n--- Waiting for containers to be healthy ---" -ForegroundColor Cyan
-    $allDockerServices = @("evernote-postgres", "evernote-redis", "evernote-minio", "evernote-meilisearch")
+    $allDockerServices = @("evernote-mysql", "evernote-redis", "evernote-minio", "evernote-meilisearch")
     $maxWait = 60
     $waited = 0
 
@@ -209,7 +209,7 @@ if (-not $useRemoteServices) {
 }
 else {
     Write-Host "`n--- Skipping Docker containers (using remote services) ---" -ForegroundColor Yellow
-    Write-Host "  Make sure your remote PostgreSQL, Redis, S3, and Meilisearch are accessible!" -ForegroundColor Gray
+    Write-Host "  Make sure your remote MySQL, Redis, S3, and Meilisearch are accessible!" -ForegroundColor Gray
 }
 
 # --- Configure Database ---

@@ -27,7 +27,7 @@ WEB_PORT_RANGE=(3000 3001 3002 3003 3004 3005)
 WS_PORT_RANGE=(1234 1235 1236 1237 1238 1239)
 
 # Docker service ports (shouldn't conflict usually)
-POSTGRES_PORT=5432
+MYSQL_PORT=3306
 REDIS_PORT=6379
 MINIO_PORT=9000
 MINIO_CONSOLE_PORT=9001
@@ -119,7 +119,7 @@ is_process_running() {
     local pid_file=$1
     if [ -f "$pid_file" ]; then
         local pid=$(cat "$pid_file")
-        if ps -p "$pid" > /dev/null 2>&1; then
+        if ps -p "$pid" > /dev/null; then
             return 0
         fi
     fi
@@ -147,7 +147,7 @@ check_is_remote() {
     if [ -z "$line" ]; then return 1; fi
     
     # Local patterns (matches hostnames: //host or @host)
-    local local_patterns="(@|//)(localhost|127\.0\.0\.1|postgres|redis|minio|meilisearch)(:|/|$)"
+    local local_patterns="(@|//)(localhost|127\.0\.0\.1|mysql|mariadb|redis|minio|meilisearch)(:|/|$)"
     
     if echo "$line" | grep -qE "$local_patterns"; then
         return 1 # Local
@@ -164,7 +164,7 @@ get_docker_scale_args() {
     if [ ! -f "$env_file" ]; then echo ""; return; fi
     
     if check_is_remote "DATABASE_URL" "$env_file"; then
-        scale_args="$scale_args --scale postgres=0"
+        scale_args="$scale_args --scale mysql=0"
     fi
     
     if check_is_remote "REDIS_URL" "$env_file"; then
@@ -188,12 +188,12 @@ get_docker_services() {
     local services=""
     
     if [ ! -f "$env_file" ]; then 
-        echo "postgres redis minio minio-setup meilisearch"
+        echo "mysql redis minio minio-setup meilisearch"
         return
     fi
     
     if ! check_is_remote "DATABASE_URL" "$env_file"; then
-        services="$services postgres"
+        services="$services mysql"
     fi
     
     if ! check_is_remote "REDIS_URL" "$env_file"; then
