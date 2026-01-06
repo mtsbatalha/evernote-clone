@@ -6,8 +6,8 @@ const nextConfig = {
         remotePatterns: [
             {
                 protocol: 'http',
-                hostname: 'localhost',
-                port: '9000',
+                hostname: process.env.API_PUBLIC_URL ? new URL(process.env.API_PUBLIC_URL).hostname : 'localhost',
+                port: process.env.API_PUBLIC_URL ? (new URL(process.env.API_PUBLIC_URL).port || '') : '9000',
                 pathname: '/evernote-attachments/**',
             },
         ],

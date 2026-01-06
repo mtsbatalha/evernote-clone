@@ -130,7 +130,20 @@ cd "$PROJECT_ROOT"
 # Export environment variables
 export PORT=$API_PORT
 export WS_PORT=$WS_PORT
-export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
+
+# Determine Public API URL
+if [ -z "$API_PUBLIC_URL" ] && [ -f "$PROJECT_ROOT/.env" ]; then
+    API_PUBLIC_URL=$(grep "^API_PUBLIC_URL=" "$PROJECT_ROOT/.env" | cut -d '=' -f2 | tr -d '"')
+fi
+
+if [ -n "$API_PUBLIC_URL" ]; then
+    export API_PUBLIC_URL
+    export NEXT_PUBLIC_API_URL="$API_PUBLIC_URL/api"
+    log_info "Using Public API URL: $NEXT_PUBLIC_API_URL"
+else
+    export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
+    log_info "Using Local API URL: $NEXT_PUBLIC_API_URL"
+fi
 
 # Start API in background using pnpm to resolve node_modules correctly
 nohup pnpm --filter @evernote-clone/api run start > "$API_LOG_FILE" 2>&1 &
@@ -156,7 +169,6 @@ cd "$PROJECT_ROOT/apps/web"
 
 # Export environment variables
 export PORT=$WEB_PORT
-export NEXT_PUBLIC_API_URL="http://localhost:$API_PORT/api"
 
 # Start Web in background (listen on all interfaces for Docker/proxy access)
 nohup pnpm exec next start -p $WEB_PORT -H 0.0.0.0 > "$WEB_LOG_FILE" 2>&1 &

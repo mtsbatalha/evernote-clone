@@ -228,10 +228,25 @@ pnpm db:generate
 Write-Host "  Running db:push..." -ForegroundColor Gray
 pnpm db:push
 
+# --- Determine Public URLs ---
+$env:NEXT_PUBLIC_API_URL = "http://localhost:4000/api"
+
+if (Test-Path ".env") {
+    $envContent = Get-Content ".env" -Raw
+    if ($envContent -match 'API_PUBLIC_URL\s*=\s*(.*)') {
+        $publicApiUrl = $matches[1].Trim().Trim('"').Trim("'")
+        if (-not [string]::IsNullOrWhiteSpace($publicApiUrl)) {
+            $env:API_PUBLIC_URL = $publicApiUrl
+            $env:NEXT_PUBLIC_API_URL = "$publicApiUrl/api"
+            Write-Host "  Using Public API URL: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
+        }
+    }
+}
+
 # --- Start Development Servers ---
 Write-Host "`n--- Starting Development Servers ---" -ForegroundColor Cyan
 Write-Host "  Web: http://localhost:3000" -ForegroundColor Green
-Write-Host "  API: http://localhost:4000" -ForegroundColor Green
+Write-Host "  API: $($env:NEXT_PUBLIC_API_URL)" -ForegroundColor Green
 Write-Host "  Press Ctrl+C to stop" -ForegroundColor Yellow
 Write-Host ""
 pnpm dev
