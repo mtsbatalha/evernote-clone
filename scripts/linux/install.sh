@@ -133,6 +133,8 @@ fi
 if [ "$USE_REMOTE_SERVICES" = false ]; then
     log_info "Starting Docker services (PostgreSQL, Redis, MinIO, Meilisearch)..."
 
+    DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker/docker-compose.yml"
+
     # Get scaling arguments for partial remote services
     SCALE_ARGS=$(get_docker_scale_args "$ENV_FILE")
 
