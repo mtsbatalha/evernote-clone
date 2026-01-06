@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ImportNotesDialog } from './import-notes-dialog';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_URL = '/api';
 
 interface AccountSettingsDialogProps {
     children: React.ReactNode;
