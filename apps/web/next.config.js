@@ -12,16 +12,7 @@ const nextConfig = {
             },
         ],
     },
-    async rewrites() {
-        // Use the public API URL if available, otherwise fallback to local
-        const apiBaseUrl = process.env.API_PUBLIC_URL || 'http://localhost:4000';
-        return [
-            {
-                source: '/api/:path*',
-                destination: `${apiBaseUrl}/api/:path*`,
-            },
-        ];
-    },
+    // Note: /api routing is handled by Nginx Proxy Manager, not Next.js rewrites
 };
 
 module.exports = nextConfig;
