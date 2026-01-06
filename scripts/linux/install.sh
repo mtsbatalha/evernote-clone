@@ -214,6 +214,40 @@ pnpm --filter @evernote-clone/web build
 log_success "Web app built"
 
 # ==============================================================================
+# Firewall Configuration
+# ==============================================================================
+
+log_info "Configuring firewall..."
+
+# Check for UFW (Ubuntu/Debian)
+if command -v ufw >/dev/null; then
+    if ufw status | grep -q "Status: active"; then
+        log_info "UFW detected and active. Opening ports..."
+        ufw allow 3000/tcp
+        ufw allow 4000/tcp
+        ufw reload
+        log_success "Ports 3000 and 4000 opened in UFW"
+    else
+        log_warning "UFW found but inactive. Skipping configuration."
+    fi
+
+# Check for Firewalld (CentOS/Fedora)
+elif command -v firewall-cmd >/dev/null; then
+    if firewall-cmd --state >/dev/null 2>&1; then
+        log_info "Firewalld detected and active. Opening ports..."
+        firewall-cmd --permanent --add-port=3000/tcp
+        firewall-cmd --permanent --add-port=4000/tcp
+        firewall-cmd --reload
+        log_success "Ports 3000 and 4000 opened in Firewalld"
+    else
+        log_warning "Firewalld found but inactive. Skipping configuration."
+    fi
+
+else
+    log_warning "No supported firewall manager found (ufw/firewalld). Please ensure ports 3000 and 4000 are open manually."
+fi
+
+# ==============================================================================
 # Final Summary
 # ==============================================================================
 
