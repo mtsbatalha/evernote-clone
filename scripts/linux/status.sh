@@ -23,11 +23,30 @@ load_runtime_config
 echo "Application Services:"
 echo "---------------------"
 
+get_listen_address() {
+    local port=$1
+    local addr=""
+    if command -v ss &> /dev/null; then
+        addr=$(ss -tuln | grep ":$port " | head -n 1 | awk '{print $5}' | cut -d: -f1)
+    elif command -v netstat &> /dev/null; then
+        addr=$(netstat -tuln | grep ":$port " | head -n 1 | awk '{print $4}' | cut -d: -f1)
+    fi
+    
+    if [ "$addr" = "*" ] || [ "$addr" = "0.0.0.0" ] || [ "$addr" = "::" ]; then
+        echo "0.0.0.0" # Any interface
+    elif [ "$addr" = "127.0.0.1" ]; then
+        echo "127.0.0.1" # Localhost only
+    else
+        echo "$addr"
+    fi
+}
+
 # API Status
 if is_process_running "$API_PID_FILE"; then
     API_PID=$(get_process_pid "$API_PID_FILE")
     API_PORT_DISPLAY=${API_PORT:-$DEFAULT_API_PORT}
-    echo -e "  API:     ${GREEN}● Running${NC} (PID: $API_PID, Port: $API_PORT_DISPLAY)"
+    API_LISTEN=$(get_listen_address "$API_PORT_DISPLAY")
+    echo -e "  API:     ${GREEN}● Running${NC} (PID: $API_PID, Port: $API_PORT_DISPLAY, Listen: $API_LISTEN)"
 else
     echo -e "  API:     ${RED}○ Stopped${NC}"
 fi
@@ -36,7 +55,8 @@ fi
 if is_process_running "$WEB_PID_FILE"; then
     WEB_PID=$(get_process_pid "$WEB_PID_FILE")
     WEB_PORT_DISPLAY=${WEB_PORT:-$DEFAULT_WEB_PORT}
-    echo -e "  Web:     ${GREEN}● Running${NC} (PID: $WEB_PID, Port: $WEB_PORT_DISPLAY)"
+    WEB_LISTEN=$(get_listen_address "$WEB_PORT_DISPLAY")
+    echo -e "  Web:     ${GREEN}● Running${NC} (PID: $WEB_PID, Port: $WEB_PORT_DISPLAY, Listen: $WEB_LISTEN)"
 else
     echo -e "  Web:     ${RED}○ Stopped${NC}"
 fi
