@@ -26,7 +26,7 @@ function Get-DockerServices {
     }
     
     # Local patterns (matches hostnames: //host or @host)
-    $localPatterns = "(@|//)(localhost|127\.0\.0\.1|mysql|mariadb|redis|minio|meilisearch)(:|/|$)"
+    $localPatterns = "(@|//)(localhost|127\.0\.0\.1|mysql|mariadb|postgres|postgresql|redis|minio|meilisearch)(:|/|$)"
     
     # MySQL
     if ($envContent -match 'DATABASE_URL\s*=\s*[^\s]+' -and ($matches[0] -match $localPatterns)) {

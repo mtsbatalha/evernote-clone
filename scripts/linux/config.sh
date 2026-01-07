@@ -157,7 +157,7 @@ check_is_remote() {
     if [ -z "$line" ]; then return 1; fi
     
     # Local patterns (matches hostnames: //host or @host)
-    local local_patterns="(@|//)(localhost|127\.0\.0\.1|mysql|mariadb|redis|minio|meilisearch)(:|/|$)"
+    local local_patterns="(@|//)(localhost|127\\.0\\.0\\.1|mysql|mariadb|postgres|postgresql|redis|minio|meilisearch)(:|/|$)"
     
     if echo "$line" | grep -qE "$local_patterns"; then
         return 1 # Local
